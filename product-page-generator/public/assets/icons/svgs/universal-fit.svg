@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="32" cy="32" r="22" fill="currentColor" opacity="0.06"/>
+  <circle cx="32" cy="32" r="14" fill="currentColor" opacity="0.04"/>
+  <circle cx="32" cy="32" r="6" fill="currentColor" opacity="0.12"/>
+  <path d="M32 10 L32 18 M32 46 L32 54 M10 32 L18 32 M46 32 L54 32"/>
+  <path d="M17 17 L23 23 M41 41 L47 47 M17 47 L23 41 M41 23 L47 17"/>
+  <text x="32" y="35" text-anchor="middle" font-size="7" font-weight="700" fill="currentColor" stroke="none" opacity="0.5">ALL</text>
+</svg>

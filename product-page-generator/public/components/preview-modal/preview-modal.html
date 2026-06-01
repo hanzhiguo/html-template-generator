@@ -1,0 +1,138 @@
+<div class="preview-modal-overlay" id="previewModal">
+    <div class="preview-modal">
+        <div class="preview-modal-header">
+            <h3 id="previewTitle">产品详情预览</h3>
+            <div class="preview-template-selector">
+                <label for="templateType">模板:</label>
+                <select id="templateType" onchange="app.switchTemplate(this.value)">
+                    <option value="detail">详情页</option>
+                    <option value="main-image">主图模板</option>
+                    <option value="manual">手册 (9:16)</option>
+                </select>
+                <label for="previewLang" style="margin-left: 16px;">语言:</label>
+                <select id="previewLang" onchange="app.switchPreviewLanguage(this.value)">
+                    <option value="zh">🇨🇳 中文</option>
+                    <option value="en">🇺🇸 English</option>
+                    <option value="ja">🇯🇵 日本語</option>
+                    <option value="de">🇩🇪 Deutsch</option>
+                    <option value="fr">🇫🇷 Français</option>
+                    <option value="es">🇪🇸 Español</option>
+                    <option value="ko">🇰🇷 한국어</option>
+                    <option value="ru">🇷🇺 Русский</option>
+                </select>
+                <span class="preview-page-indicator" id="previewPageIndicator">第 1/1 页</span>
+                <button class="btn btn-sm" onclick="app.prevPage()" id="prevPageBtn" style="display:none;">◀</button>
+                <button class="btn btn-sm" onclick="app.nextPage()" id="nextPageBtn" style="display:none;">▶</button>
+            </div>
+            <div class="preview-actions">
+                <button class="btn btn-success btn-sm" onclick="app.exportPreview('jpg')">📷 导出JPG</button>
+                <button class="btn btn-secondary btn-sm" onclick="app.exportPreview('png')">🖼️ 导出PNG</button>
+                <button class="modal-close" onclick="app.closePreview()">×</button>
+            </div>
+        </div>
+        <div class="preview-main-image-settings" id="mainImageSettings" style="display: none;">
+            <div class="settings-row">
+                <div class="settings-group">
+                    <label>标题颜色</label>
+                    <div class="color-preset-wrapper">
+                        <button class="color-preset" data-color="#ffffff" data-target="title" onclick="app.setPresetColor('title', '#ffffff')" style="background:#ffffff;border:2px solid #ccc;">白</button>
+                        <button class="color-preset" data-color="#000000" data-target="title" onclick="app.setPresetColor('title', '#000000')" style="background:#000000;color:#fff;">黑</button>
+                        <button class="color-preset" data-color="#666666" data-target="title" onclick="app.setPresetColor('title', '#666666')" style="background:#666666;color:#fff;">灰</button>
+                        <input type="text" id="mainImageTitleColor" value="#ffffff" placeholder="#ffffff" onchange="app.setCustomColor('title', this.value)" class="color-text-input">
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <label>副标题颜色</label>
+                    <div class="color-preset-wrapper">
+                        <button class="color-preset" data-color="#ffffff" data-target="subtitle" onclick="app.setPresetColor('subtitle', '#ffffff')" style="background:#ffffff;border:2px solid #ccc;">白</button>
+                        <button class="color-preset" data-color="#000000" data-target="subtitle" onclick="app.setPresetColor('subtitle', '#000000')" style="background:#000000;color:#fff;">黑</button>
+                        <button class="color-preset" data-color="#888888" data-target="subtitle" onclick="app.setPresetColor('subtitle', '#888888')" style="background:#888888;color:#fff;">灰</button>
+                        <input type="text" id="mainImageSubtitleColor" value="rgba(255,255,255,0.85)" placeholder="rgba(...)" onchange="app.setCustomColor('subtitle', this.value)" class="color-text-input">
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <label>文字位置</label>
+                    <div class="position-buttons">
+                        <button class="pos-btn" data-position="left" onclick="app.setMainImagePosition('left')">◀ 左</button>
+                        <button class="pos-btn active" data-position="center" onclick="app.setMainImagePosition('center')">● 中</button>
+                        <button class="pos-btn" data-position="right" onclick="app.setMainImagePosition('right')">右 ▶</button>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <label>垂直位置</label>
+                    <div class="position-buttons">
+                        <button class="pos-btn" data-vposition="top" onclick="app.setMainImageVPosition('top')">▲ 上</button>
+                        <button class="pos-btn active" data-vposition="center" onclick="app.setMainImageVPosition('center')">● 中</button>
+                        <button class="pos-btn" data-vposition="bottom" onclick="app.setMainImageVPosition('bottom')">▼ 下</button>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-row">
+                <div class="settings-group">
+                    <label>标题大小</label>
+                    <input type="range" id="mainImageTitleSize" min="24" max="100" value="56" oninput="app.setTitleSize(this.value)">
+                    <span id="titleSizeValue">56px</span>
+                </div>
+                <div class="settings-group">
+                    <label>副标题大小</label>
+                    <input type="range" id="mainImageSubtitleSize" min="14" max="60" value="28" oninput="app.setSubtitleSize(this.value)">
+                    <span id="subtitleSizeValue">28px</span>
+                </div>
+            </div>
+            <div class="settings-row">
+                <div class="settings-group">
+                    <label>背景颜色</label>
+                    <div class="bg-color-preset-wrapper">
+                        <button class="bg-color-preset" data-bg-color="#e5e7eb" onclick="app.setBgColor('#e5e7eb')" style="background:#e5e7eb;"></button>
+                        <button class="bg-color-preset active" data-bg-color="#f5f5f5" onclick="app.setBgColor('#f5f5f5')" style="background:#f5f5f5;"></button>
+                        <button class="bg-color-preset" data-bg-color="#1e293b" onclick="app.setBgColor('#1e293b')" style="background:#1e293b;"></button>
+                        <button class="bg-color-preset" data-bg-color="#fef3c7" onclick="app.setBgColor('#fef3c7')" style="background:#fef3c7;"></button>
+                        <button class="bg-color-preset" data-bg-color="#dbeafe" onclick="app.setBgColor('#dbeafe')" style="background:#dbeafe;"></button>
+                        <button class="bg-color-preset" data-bg-color="#fce7f3" onclick="app.setBgColor('#fce7f3')" style="background:#fce7f3;"></button>
+                        <input type="text" id="mainImageBgColor" value="#f5f5f5" placeholder="#f5f5f5" onchange="app.setBgColor(this.value)" class="bg-color-input">
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <label>图层遮罩</label>
+                    <div class="overlay-buttons">
+                        <button class="overlay-btn" data-overlay="none" onclick="app.setOverlayType('none')">无</button>
+                        <button class="overlay-btn active" data-overlay="dark" onclick="app.setOverlayType('dark')">深色</button>
+                        <button class="overlay-btn" data-overlay="light" onclick="app.setOverlayType('light')">浅色</button>
+                        <button class="overlay-btn" data-overlay="gradient" onclick="app.setOverlayType('gradient')">彩色</button>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-row">
+                <div class="settings-group">
+                    <label>文字效果</label>
+                    <div class="toggle-group">
+                        <button class="toggle-btn active" data-key="textShadow" onclick="app.toggleStyle('textShadow')">阴影效果</button>
+                        <button class="toggle-btn" data-key="textStroke" onclick="app.toggleStyle('textStroke')">描边效果</button>
+                        <button class="toggle-btn active" data-key="titleBold" onclick="app.toggleStyle('titleBold')">标题加粗</button>
+                        <button class="toggle-btn" data-key="bgOverlay" onclick="app.toggleStyle('bgOverlay')">背景遮罩</button>
+                        <button class="toggle-btn" data-key="textBg" onclick="app.toggleStyle('textBg')">文字背景</button>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-row">
+                <div class="settings-group">
+                    <label>排版装饰</label>
+                    <div class="layout-buttons">
+                        <button class="layout-btn active" data-layout="none" onclick="app.setLayoutStyle('none')">无</button>
+                        <button class="layout-btn" data-layout="line-left" onclick="app.setLayoutStyle('line-left')">┃左竖线</button>
+                        <button class="layout-btn" data-layout="line-top" onclick="app.setLayoutStyle('line-top')">━上横线</button>
+                        <button class="layout-btn" data-layout="bracket" onclick="app.setLayoutStyle('bracket')">「」括号</button>
+                        <button class="layout-btn" data-layout="dot-frame" onclick="app.setLayoutStyle('dot-frame')">◆ 菱形点</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="preview-modal-body" id="previewContent"></div>
+        <div class="translation-loading" id="translationLoading" style="display: none;">
+            <div class="translation-loading-content">
+                <div class="translation-spinner"></div>
+                <span id="translationStatus">正在翻译...</span>
+            </div>
+        </div>
+    </div>
+</div>

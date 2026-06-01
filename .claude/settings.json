@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(exist node_modules rmdir /s /q node_modules)",
+      "Bash(exist package-lock.json del package-lock.json)",
+      "Bash(Remove-Item -Recurse -Force \"e:\\\\Product Description\\\\product-page-generator\\\\node_modules\" -ErrorAction SilentlyContinue)",
+      "Bash(Remove-Item -Force \"e:\\\\Product Description\\\\product-page-generator\\\\package-lock.json\" -ErrorAction SilentlyContinue)",
+      "Bash(timeout 5 node server/index.js)",
+      "Bash(Start-Process -FilePath \"node\" -ArgumentList \"server/index.js\" -WorkingDirectory \"e:\\\\Product Description\\\\product-page-generator\" -WindowStyle Hidden)",
+      "Bash(Start-Sleep 3)",
+      "Bash(node -e ' *)"
+    ]
+  }
+}

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#ffffff">
+    <title>产品详情页生成器</title>
+
+    <link rel="stylesheet" href="css/design-tokens.css">
+    <link rel="stylesheet" href="css/themes-light-dark.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/themes.css">
+
+    <link rel="stylesheet" href="pages/login/login.css">
+    <link rel="stylesheet" href="pages/products/products.css">
+    <link rel="stylesheet" href="pages/attachments/attachments.css">
+
+    <style>
+        .theme-toggle-btn {
+            position: fixed;
+            top: var(--space-4);
+            right: var(--space-4);
+            z-index: var(--z-sticky);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            background: var(--bg-surface);
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--radius-full);
+            border: 1px solid var(--border-default);
+            box-shadow: var(--shadow-sm);
+            cursor: pointer;
+            font-size: var(--text-sm);
+            color: var(--text-primary);
+        }
+        .theme-toggle-btn:hover {
+            border-color: var(--accent);
+            box-shadow: var(--shadow-md);
+        }
+        .theme-icon { font-size: 16px; }
+
+        .btn-icon-sm { padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .btn-save-sm { background: #10b981; color: white; }
+        .btn-cancel-sm { background: #6b7280; color: white; }
+        .btn-del-sm { background: #ef4444; color: white; }
+        .btn-edit-sm { background: #3b82f6; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-secondary { background: #6b7280; color: white; }
+        .btn-secondary:hover { background: #4b5563; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+        .btn-primary { background: linear-gradient(135deg, #1e40af, #3b82f6); color: white; width: 100%; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(30,64,175,0.3); }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle-btn" onclick="toggleTheme()" aria-label="切换主题">
+        <span class="theme-icon">☀️</span>
+        <span class="theme-text">浅色</span>
+    </button>
+
+    <nav class="navbar hidden" id="navbar">
+        <h1>📋 产品详情页生成器</h1>
+        <div class="user-info">
+            <span id="username"></span>
+            <button onclick="app.logout()">退出</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="login-container" id="loginContainer">
+            <div class="login-box">
+                <h2>🔐 用户登录</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label>用户名</label>
+                        <input type="text" id="loginUsername" required>
+                    </div>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">登录</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="hidden" id="mainContent">
+            <div class="tabs">
+                <button class="tab active" data-page="products">📦 产品列表</button>
+                <button class="tab" data-page="image-to-product">🖼️ 从图片添加产品</button>
+                <button class="tab" data-page="attachments">📎 附件管理</button>
+                <a href="main-image-template.html" class="tab" style="text-decoration:none;">📐 主图模板</a>
+                <button class="tab" data-page="agent">🤖 AI助手</button>
+                <button class="tab" data-page="settings">⚙️ 设置</button>
+            </div>
+
+            <div id="app-container"></div>
+        </div>
+    </div>
+
+    <div id="modal-container"></div>
+    <div id="toast-container"></div>
+    <div id="preview-container"></div>
+    <div id="ai-chat-container"></div>
+    <div id="csv-import-container"></div>
+
+    <script type="module">
+        import { themeManager, toggleTheme } from './js/services/themeManager.js';
+
+        window.toggleTheme = function() {
+            const newTheme = toggleTheme();
+            updateThemeButton(newTheme);
+        };
+
+        function updateThemeButton(theme) {
+            const icon = document.querySelector('.theme-icon');
+            const text = document.querySelector('.theme-text');
+            if (theme === 'light') {
+                icon.textContent = '☀️';
+                text.textContent = '浅色';
+            } else {
+                icon.textContent = '🌙';
+                text.textContent = '深色';
+            }
+        }
+
+        updateThemeButton(themeManager.getCurrentTheme());
+
+        window.addEventListener('themechange', (e) => {
+            updateThemeButton(e.detail.theme);
+        });
+    </script>
+
+    <script type="module" src="js/app.js"></script>
+
+    <script>
+        function showAddProductModal() {
+            document.getElementById('productId').value = '';
+            document.getElementById('productSku').value = '';
+            document.getElementById('productName').value = '';
+            document.getElementById('productSubtitle').value = '';
+            document.getElementById('productPrice').value = '';
+            document.getElementById('productCurrency').value = 'USD';
+            document.getElementById('productStatus').value = 'draft';
+            document.getElementById('modalTitle').textContent = '新增产品';
+            app.clearAllDataLists();
+            document.getElementById('productModal').classList.add('active');
+        }
+
+        function toggleAIChat() {
+            const chatWindow = document.getElementById('aiChatWindow');
+            chatWindow.classList.toggle('active');
+            if (chatWindow.classList.contains('active')) {
+                loadProviderInfo();
+            }
+        }
+
+        async function loadProviderInfo() {
+            const infoEl = document.getElementById('aiProviderInfo');
+            if (!infoEl) return;
+            try {
+                const res = await fetch(`${window.location.origin}/api/settings/config`, {
+                    headers: { 'Authorization': `Bearer ${app.token}` }
+                });
+                const data = await res.json();
+                const provider = data.defaultProvider || 'ollama';
+                const model = data.providers?.[provider]?.model || 'unknown';
+                const providerNames = { ollama: 'Ollama本地', deepseek: 'DeepSeek', zhipu: '智谱AI' };
+                infoEl.textContent = `${providerNames[provider] || provider} | ${model}`;
+                infoEl.style.color = provider === 'ollama' ? '#10b981' : '#3b82f6';
+            } catch (e) {
+                infoEl.textContent = 'Ollama本地 | gemma4:e4b';
+                infoEl.style.color = '#10b981';
+            }
+        }
+
+        async function sendAgentMessage() {
+            const input = document.getElementById('agentInput');
+            const message = input.value.trim();
+            if (!message) return;
+            if (!window.app || !window.app.token) { alert('请先登录'); return; }
+
+            const currentConvId = window.appState ? window.appState.getState().currentConversationId : null;
+            app.addMessageToUI('user', message);
+            input.value = '';
+
+            let abortController = new AbortController();
+            window._abortController = abortController;
+            window.abortAgent = function() { if (window._abortController) window._abortController.abort(); };
+            app.showStopButton();
+
+            let aiMsgEl = null;
+            let toolStepEl = null;
+
+            try {
+                const response = await fetch(`${window.location.origin}/api/agent/chat/stream`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${app.token}` },
+                    body: JSON.stringify({ message: message, conversationId: currentConvId }),
+                    signal: abortController.signal
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    if (aiMsgEl) {
+                        app.finalizeStreamingMessage(aiMsgEl, '错误: ' + (data.error || '请求失败 (HTTP ' + response.status + ')'));
+                    } else {
+                        app.addMessageToUI('assistant', '错误: ' + (data.error || '请求失败 (HTTP ' + response.status + ')'));
+                    }
+                    app.hideStopButton();
+                    return;
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                if (data.type === 'content') {
+                                    if (!aiMsgEl) aiMsgEl = app.addStreamingMessage();
+                                    app.appendStreamingContent(aiMsgEl, data.content);
+                                } else if (data.type === 'tool_start') {
+                                    toolStepEl = app.addToolStep(data.tool_calls);
+                                } else if (data.type === 'tool_result') {
+                                    if (toolStepEl) { app.completeToolStep(toolStepEl, data.results); toolStepEl = null; }
+                                    if (data.results) {
+                                        data.results.forEach(r => {
+                                            if (r.name === 'get_product_attachments' && r.data?.attachments) app.addAttachmentCard(r.data.attachments);
+                                            if (r.name === 'get_download_link' && r.data) app.addAttachmentCard([r.data]);
+                                        });
+                                    }
+                                } else if (data.type === 'done') {
+                                    app.hideStopButton();
+                                    if (aiMsgEl) app.finalizeStreamingMessage(aiMsgEl);
+                                    if (data.conversationId && window.appState) window.appState.setCurrentConversationId(data.conversationId);
+                                    app.loadConversations();
+                                } else if (data.type === 'aborted') {
+                                    app.hideStopButton();
+                                    if (aiMsgEl) {
+                                        app.finalizeStreamingMessage(aiMsgEl);
+                                        const contentEl = aiMsgEl.querySelector('.streaming-content');
+                                        if (contentEl) {
+                                            const abortMsg = document.createElement('span');
+                                            abortMsg.style.cssText = 'color:#ef4444;font-size:12px;margin-left:8px;';
+                                            abortMsg.textContent = '[已中止]';
+                                            contentEl.appendChild(abortMsg);
+                                        }
+                                    }
+                                } else if (data.type === 'error') {
+                                    app.hideStopButton();
+                                    if (aiMsgEl) app.finalizeStreamingMessage(aiMsgEl, '错误: ' + data.error);
+                                    else app.addMessageToUI('assistant', '错误: ' + data.error);
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+            } catch (error) {
+                app.hideStopButton();
+                if (error.name === 'AbortError') {
+                    if (aiMsgEl) {
+                        app.finalizeStreamingMessage(aiMsgEl);
+                        const contentEl = aiMsgEl.querySelector('.streaming-content');
+                        if (contentEl) {
+                            const abortMsg = document.createElement('span');
+                            abortMsg.style.cssText = 'color:#ef4444;font-size:12px;margin-left:8px;';
+                            abortMsg.textContent = '[已中止]';
+                            contentEl.appendChild(abortMsg);
+                        }
+                    }
+                } else {
+                    console.error('Agent chat error:', error);
+                    if (aiMsgEl) app.finalizeStreamingMessage(aiMsgEl, '抱歉，发生错误，请稍后重试。');
+                    else app.addMessageToUI('assistant', '抱歉，发生错误，请稍后重试。');
+                }
+            }
+        }
+
+        async function testProvider(provider) {
+            const statusEl = document.getElementById(provider + 'Status');
+            statusEl.textContent = '测试中...';
+            statusEl.style.color = '#64748b';
+            try {
+                const response = await fetch(`${window.location.origin}/api/settings/test-provider`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${app.token}` },
+                    body: JSON.stringify({ provider })
+                });
+                const data = await response.json();
+                if (data.status === 'success' || data.status === 'configured') {
+                    statusEl.textContent = '✅ ' + (data.message || '连接成功');
+                    statusEl.style.color = '#10b981';
+                } else {
+                    statusEl.textContent = '❌ ' + (data.message || data.error || '连接失败');
+                    statusEl.style.color = '#dc2626';
+                }
+            } catch (error) {
+                statusEl.textContent = '❌ 测试失败';
+                statusEl.style.color = '#dc2626';
+            }
+        }
+
+        async function saveSettings() {
+            const config = {
+                defaultProvider: document.getElementById('defaultProvider').value,
+                providers: {
+                    ollama: { baseUrl: document.getElementById('ollamaBaseUrl').value, model: app.getOllamaModel() },
+                    deepseek: { apiKey: document.getElementById('deepseekApiKey').value, model: document.getElementById('deepseekModel').value },
+                    zhipu: { apiKey: document.getElementById('zhipuApiKey').value, model: document.getElementById('zhipuModel').value }
+                },
+                maxIterations: parseInt(document.getElementById('maxIterations').value),
+                maxTokens: parseInt(document.getElementById('maxTokens').value)
+            };
+            try {
+                const response = await fetch(`${window.location.origin}/api/settings/config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${app.token}` },
+                    body: JSON.stringify(config)
+                });
+                const data = await response.json();
+                if (data.success) {
+                    const toast = document.getElementById('toast');
+                    toast.textContent = '设置已保存';
+                    toast.className = 'toast success show';
+                    setTimeout(() => toast.classList.remove('show'), 3000);
+                } else {
+                    alert('保存失败: ' + (data.error || '未知错误'));
+                }
+            } catch (error) {
+                alert('保存失败: 网络错误');
+            }
+        }
+
+        document.getElementById('agentInput')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendAgentMessage();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bicycle Riding Platform</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary-blue: #1e40af;
+            --primary-blue-dark: #1e3a8a;
+            --primary-blue-light: #3b82f6;
+            --primary-blue-lighter: #93c5fd;
+            --primary-blue-bg: #eff6ff;
+            --accent-gradient: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #fff;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            display: flex;
+            padding: 60px 80px;
+            gap: 60px;
+            align-items: center;
+        }
+
+        .hero-content { flex: 1; }
+
+        .hero-title {
+            font-size: 56px;
+            font-weight: 900;
+            letter-spacing: -2px;
+            line-height: 1.1;
+            margin-bottom: 16px;
+            color: #000;
+        }
+
+        .hero-subtitle {
+            font-size: 20px;
+            color: var(--primary-blue);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .hero-description {
+            font-size: 18px;
+            color: #555;
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+
+        .hero-price {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--primary-blue);
+            margin-bottom: 24px;
+        }
+
+        .highlights-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .highlight-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .highlight-icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--accent-gradient);
+            border-radius: 8px;
+        }
+
+        .highlight-icon svg {
+            width: 24px;
+            height: 24px;
+            stroke: white;
+        }
+
+        .highlight-text {
+            font-size: 15px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .highlight-text small {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            font-weight: normal;
+        }
+
+        .hero-image {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hero-image img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        }
+
+        /* Section Title */
+        .section-title {
+            text-align: center;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            margin: 60px 0 40px;
+            color: var(--primary-blue);
+        }
+
+        /* Features Cards */
+        .features-section {
+            padding: 0 80px 60px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+        }
+
+        .feature-card {
+            background: #fafafa;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        }
+
+        .feature-emoji {
+            font-size: 40px;
+            margin-bottom: 16px;
+        }
+
+        .feature-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--primary-blue);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .feature-desc {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        /* Bottom Grid */
+        .bottom-section {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+            padding: 0 80px 60px;
+        }
+
+        .card-section {
+            background: #fafafa;
+            border-radius: 12px;
+            padding: 30px;
+        }
+
+        .card-section h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary-blue);
+            margin-bottom: 24px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Specs */
+        .specs-table {
+            width: 100%;
+        }
+
+        .spec-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .spec-row:last-child { border-bottom: none; }
+
+        .spec-label {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .spec-value {
+            font-size: 14px;
+            color: #000;
+            font-weight: 600;
+        }
+
+        /* Accessories */
+        .accessories-list {
+            list-style: none;
+        }
+
+        .accessory-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 14px;
+        }
+
+        .accessory-item:last-child { border-bottom: none; }
+
+        .accessory-item::before {
+            content: '✓';
+            color: var(--primary-blue);
+            font-weight: bold;
+        }
+
+        /* Dimensions */
+        .dimensions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .dim-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .dim-label { color: #666; }
+        .dim-value { color: #000; font-weight: 600; }
+
+        /* Export Button */
+        .export-buttons {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .export-btn {
+            padding: 12px 24px;
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .hero-section { flex-direction: column; padding: 40px; }
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
+            .bottom-section { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .hero-title { font-size: 36px; }
+            .highlights-grid { grid-template-columns: 1fr; }
+            .features-grid { grid-template-columns: 1fr; }
+            .hero-section, .features-section, .bottom-section { padding-left: 20px; padding-right: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="export-buttons">
+        <button class="export-btn" onclick="exportImage('jpg')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+            导出 JPG
+        </button>
+    </div>
+
+    <div class="container" id="capture-area">
+        <!-- Hero Section -->
+        <div class="hero-section">
+            <div class="hero-content">
+                <h1 class="hero-title">Bicycle Riding Platform</h1>
+                <p class="hero-subtitle">Park Firmly</p>
+                <p class="hero-price">USD $299.99</p>
+
+                <div class="highlights-grid">
+                </div>
+            </div>
+            <div class="hero-image">
+                <img src="https://via.placeholder.com/500x500/fafafa/cccccc?text=Bicycle Riding Platform" alt="Bicycle Riding Platform">
+            </div>
+        </div>
+
+        <!-- Features Section -->
+
+        <!-- Bottom Section -->
+        <div class="bottom-section">
+            <!-- Specs -->
+            <div class="card-section">
+                <h3>Specifications</h3>
+                <div class="specs-table">
+                </div>
+            </div>
+
+            <!-- Accessories -->
+
+            <!-- Dimensions -->
+        </div>
+    </div>
+
+    <script>
+        async function waitForImages(element) {
+            const images = element.querySelectorAll('img');
+            const promises = Array.from(images).map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise((resolve) => {
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                    setTimeout(resolve, 3000);
+                });
+            });
+            return Promise.all(promises);
+        }
+
+        async function exportImage(format) {
+            const element = document.getElementById('capture-area');
+            const btn = document.querySelector('.export-btn');
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> 导出中...';
+            btn.disabled = true;
+
+            try {
+                await waitForImages(element);
+                const canvas = await html2canvas(element, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff'
+                });
+
+                const link = document.createElement('a');
+                const timestamp = new Date().toISOString().slice(0, 10);
+                const productName = 'Bicycle Riding Platform'.replace(/\s+/g, '-').toLowerCase();
+                link.download = productName + '-' + timestamp + '.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> 成功';
+                setTimeout(() => {
+                    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> 导出 JPG';
+                    btn.disabled = false;
+                }, 2000);
+            } catch (error) {
+                console.error('导出失败:', error);
+                btn.innerHTML = '导出失败';
+                setTimeout(() => {
+                    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> 导出 JPG';
+                    btn.disabled = false;
+                }, 2000);
+            }
+        }
+    </script>
+</body>
+</html>

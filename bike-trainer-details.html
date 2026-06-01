@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>骑行台 - 产品详情</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        :root {
+            /* Primary Colors - 80% usage */
+            --primary-color: #1a1a1a;
+            --secondary-color: #333;
+            --text-gray: #666;
+            --border-color: #e8e8e8;
+            --bg-light: #fafafa;
+            --bg-section-alt: #f8f9fa;
+
+            /* Accent Colors - 20% usage (点缀色) */
+            --accent-color: #3b82f6;
+            --accent-light: #dbeafe;
+            --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+
+            /* Typography */
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+            /* Spacing (4px base unit) */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 16px;
+            --space-lg: 24px;
+            --space-xl: 40px;
+            --space-2xl: 60px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: #f0f2f5;
+            color: var(--primary-color);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: #fff;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section {
+            padding: var(--space-2xl) 70px;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        .section:nth-child(even) {
+            background-color: var(--bg-section-alt);
+        }
+
+        /* Header Section */
+        .header-section {
+            padding: 80px 70px var(--space-2xl);
+            text-align: center;
+            border-bottom: 2px solid var(--border-color);
+            position: relative;
+            background: linear-gradient(180deg, var(--accent-light) 0%, #fff 100%);
+        }
+
+        .header-decoration {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+            overflow: hidden;
+            opacity: 0.08;
+            z-index: 0;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .header-title {
+            font-size: 52px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            color: var(--primary-color);
+            margin-bottom: var(--space-md);
+            position: relative;
+            display: inline-block;
+        }
+
+        .header-title::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 4px;
+            background: var(--accent-gradient);
+            border-radius: 2px;
+        }
+
+        .header-subtitle {
+            font-size: 18px;
+            color: var(--text-gray);
+            letter-spacing: 2px;
+            font-weight: 400;
+            margin-top: var(--space-xl);
+        }
+
+        /* Section Title with SVG Icon */
+        .section-title-wrapper {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            margin-bottom: var(--space-xl);
+        }
+
+        .section-title-icon {
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+        }
+
+        .section-title {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: var(--primary-color);
+            padding-bottom: var(--space-md);
+            border-bottom: 3px solid var(--accent-color);
+            display: inline-block;
+        }
+
+        /* Section 1: Hero + Core Selling Points */
+        .hero-content-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-2xl);
+            align-items: center;
+        }
+
+        .hero-text h2 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: var(--space-lg);
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .hero-text h2 svg {
+            width: 32px;
+            height: 32px;
+            color: var(--accent-color);
+        }
+
+        .selling-points {
+            list-style: none;
+        }
+
+        .selling-point {
+            font-size: 18px;
+            color: var(--secondary-color);
+            margin-bottom: 22px;
+            padding-left: 45px;
+            position: relative;
+            line-height: 1.7;
+        }
+
+        .selling-point::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 4px;
+            width: 28px;
+            height: 28px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2.5'%3E%3Cpath d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/%3E%3C/svg%3E");
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        .selling-point strong {
+            color: var(--accent-color);
+            font-weight: 700;
+        }
+
+        .hero-image-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .image-frame-decoration {
+            position: absolute;
+            width: calc(100% + 30px);
+            height: calc(100% + 30px);
+            border: 2px solid var(--accent-color);
+            border-radius: 12px;
+            opacity: 0.15;
+            top: -15px;
+            left: -15px;
+        }
+
+        .hero-image {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            position: relative;
+            z-index: 1;
+            border-radius: 8px;
+        }
+
+        /* Section 2: Product Specifications */
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-lg) 60px;
+        }
+
+        .spec-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-md) 0;
+            border-bottom: 1px solid #f0f0f0;
+            position: relative;
+        }
+
+        .spec-item::before {
+            content: '';
+            position: absolute;
+            left: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 60%;
+            background: var(--accent-gradient);
+            border-radius: 2px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .spec-item:hover::before {
+            opacity: 1;
+        }
+
+        .spec-label {
+            font-size: 17px;
+            color: var(--text-gray);
+            flex-shrink: 0;
+        }
+
+        .spec-value {
+            font-size: 17px;
+            color: var(--primary-color);
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .spec-item.highlight .spec-value {
+            color: var(--accent-color);
+            font-weight: 700;
+        }
+
+        .specs-image-container {
+            margin-top: 45px;
+            text-align: center;
+            padding-top: 35px;
+            border-top: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .specs-image-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 3px;
+            background: var(--accent-gradient);
+            border-radius: 2px;
+        }
+
+        .specs-image {
+            max-width: 85%;
+            height: auto;
+            display: inline-block;
+        }
+
+        /* Section 3: Features */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 35px;
+            margin-bottom: 45px;
+        }
+
+        .feature-card {
+            background-color: #fff;
+            padding: 32px 28px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent-gradient);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 32px rgba(59, 130, 246, 0.15);
+            border-color: var(--accent-color);
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+
+        .feature-icon-wrapper {
+            width: 48px;
+            height: 48px;
+            margin-bottom: var(--space-md);
+            background: var(--accent-light);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .feature-icon-wrapper svg {
+            width: 28px;
+            height: 28px;
+            color: var(--accent-color);
+        }
+
+        .feature-title {
+            font-size: 19px;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .feature-desc {
+            font-size: var(--space-md);
+            color: var(--text-gray);
+            line-height: 1.7;
+        }
+
+        .features-image-container {
+            text-align: center;
+            padding-top: 25px;
+            position: relative;
+        }
+
+        .features-image {
+            max-width: 90%;
+            height: auto;
+            display: inline-block;
+        }
+
+        /* Section 4: Package Contents */
+        .package-layout {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 50px;
+            align-items: start;
+        }
+
+        .package-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+        }
+
+        .package-item {
+            font-size: 17px;
+            color: var(--secondary-color);
+            padding: 14px 20px 14px 48px;
+            background-color: var(--bg-light);
+            border-radius: 8px;
+            font-weight: 500;
+            position: relative;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .package-item::before {
+            content: '';
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2.5'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        .package-item:hover {
+            background-color: var(--accent-light);
+            border-left-color: var(--accent-color);
+            transform: translateX(4px);
+        }
+
+        .package-image-container {
+            text-align: center;
+            position: relative;
+        }
+
+        .corner-badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 60px;
+            height: 60px;
+            z-index: 2;
+        }
+
+        .package-image {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 8px;
+        }
+
+        /* Section 5: Dimensions & Compatibility */
+        .dimensions-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+            align-items: center;
+        }
+
+        .dimension-group {
+            margin-bottom: 28px;
+            padding-left: 20px;
+            border-left: 3px solid var(--accent-light);
+            transition: all 0.3s ease;
+        }
+
+        .dimension-group:hover {
+            border-left-color: var(--accent-color);
+            padding-left: 25px;
+        }
+
+        .dimension-label {
+            font-size: var(--space-md);
+            color: var(--text-gray);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .dimension-value {
+            font-size: var(--space-xl);
+            color: var(--accent-color);
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+
+        .compatibility-info {
+            margin-top: 35px;
+            padding: 28px;
+            background: linear-gradient(135deg, var(--accent-light) 0%, #fff 100%);
+            border-radius: 12px;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .compatibility-info::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            width: 100px;
+            height: 100px;
+            background: var(--accent-color);
+            opacity: 0.03;
+            border-radius: 50%;
+        }
+
+        .compatibility-title {
+            font-size: 19px;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .compatibility-title svg {
+            width: var(--space-lg);
+            height: var(--space-lg);
+            color: var(--accent-color);
+        }
+
+        .compatibility-list {
+            list-style: none;
+        }
+
+        .compatibility-item {
+            font-size: var(--space-md);
+            color: var(--secondary-color);
+            margin-bottom: 12px;
+            padding-left: 28px;
+            position: relative;
+            line-height: 1.6;
+        }
+
+        .compatibility-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 3px;
+            width: 18px;
+            height: 18px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%233b82f6'%3E%3Cpath d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/%3E%3C/svg%3E");
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        .dimensions-image-container {
+            text-align: center;
+            position: relative;
+        }
+
+        .dimensions-image {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Export Button */
+        .export-buttons {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .export-btn {
+            padding: 12px var(--space-lg);
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--accent-gradient);
+            color: white;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .hero-content-wrapper,
+            .package-layout,
+            .dimensions-layout {
+                grid-template-columns: 1fr;
+                gap: var(--space-xl);
+            }
+
+            .hero-image-container,
+            .package-image-container,
+            .dimensions-image-container {
+                order: -1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .section {
+                padding: 45px 35px;
+            }
+
+            .header-section {
+                padding: 55px 35px 45px;
+            }
+
+            .header-title {
+                font-size: 38px;
+                letter-spacing: 2px;
+            }
+
+            .section-title {
+                font-size: 26px;
+            }
+
+            .specs-grid,
+            .features-grid,
+            .package-list {
+                grid-template-columns: 1fr;
+            }
+
+            .selling-point {
+                font-size: var(--space-md);
+            }
+
+            .spec-label,
+            .spec-value {
+                font-size: 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-title {
+                font-size: 32px;
+            }
+
+            .section {
+                padding: 35px 20px;
+            }
+
+            .header-section {
+                padding: var(--space-xl) 20px 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="export-buttons">
+        <button class="export-btn" onclick="exportImage('jpg')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+            导出 JPG
+        </button>
+    </div>
+
+    <div class="container" id="capture-area">
+        <!-- Header -->
+        <header class="header-section" data-od-id="header">
+            <div class="header-decoration">
+                <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+                            <circle cx="30" cy="30" r="2" fill="#3b82f6"/>
+                        </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid)"/>
+                    <circle cx="15%" cy="20%" r="150" fill="#3b82f6" opacity="0.05"/>
+                    <circle cx="85%" cy="75%" r="200" fill="#3b82f6" opacity="0.04"/>
+                </svg>
+            </div>
+
+            <div class="header-content">
+                <h1 class="header-title" data-od-id="header-title">骑行台</h1>
+                <p class="header-subtitle" data-od-id="header-subtitle">室内训练 · 专业级体验</p>
+            </div>
+        </header>
+
+        <main>
+            <!-- Section 1: 核心卖点 -->
+            <section class="section" data-od-id="section-hero">
+                <div class="section-title-wrapper">
+                    <svg class="section-title-icon" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
+                        <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <h2 class="section-title" data-od-id="section-title-hero">核心卖点</h2>
+                </div>
+
+                <div class="hero-content-wrapper">
+                    <div class="hero-text">
+                        <h2>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                            高品质碳钢 · 停驻稳固
+                        </h2>
+                        <ul class="selling-points">
+                            <li class="selling-point"><strong>高品质碳钢</strong> - 停驻稳固，承重力强</li>
+                            <li class="selling-point"><strong>防水防锈</strong> - 耐用性强，使用寿命长</li>
+                            <li class="selling-point"><strong>粉末喷涂工艺</strong> - 表面处理精细，质感出众</li>
+                        </ul>
+                    </div>
+                    <div class="hero-image-container">
+                        <div class="image-frame-decoration"></div>
+                        <img src="image/product.jpg" alt="骑行台产品图 - 高品质碳钢材质" class="hero-image" data-od-id="hero-image">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 2: 产品规格 -->
+            <section class="section" data-od-id="section-specs">
+                <div class="section-title-wrapper">
+                    <svg class="section-title-icon" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
+                        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        <path d="M9 14l2 2 4-4"/>
+                    </svg>
+                    <h2 class="section-title" data-od-id="section-title-specs">产品规格</h2>
+                </div>
+
+                <div class="specs-grid">
+                    <div class="spec-item highlight">
+                        <span class="spec-label">适用范围：</span>
+                        <span class="spec-value">26-29英寸及700C自行车</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">材质：</span>
+                        <span class="spec-value">钢制</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">颜色：</span>
+                        <span class="spec-value">黑色</span>
+                    </div>
+                    <div class="spec-item highlight">
+                        <span class="spec-label">重量：</span>
+                        <span class="spec-value">9KG/台</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">包装：</span>
+                        <span class="spec-value">1台/盒</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">净重/毛重：</span>
+                        <span class="spec-value">9KG / 10KG</span>
+                    </div>
+                    <div class="spec-item highlight">
+                        <span class="spec-label">产品尺寸：</span>
+                        <span class="spec-value">59 × 19 × 49 厘米</span>
+                    </div>
+                    <div class="spec-item highlight">
+                        <span class="spec-label">承重能力：</span>
+                        <span class="spec-value">150KG</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">产品特性：</span>
+                        <span class="spec-value">液阻阻力、钢制框架、工程塑料</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">静音设计：</span>
+                        <span class="spec-value">运行噪音约85分贝</span>
+                    </div>
+                </div>
+
+                <div class="specs-image-container">
+                    <img src="image/product.jpg" alt="骑行台产品规格展示图" class="specs-image" data-od-id="specs-image">
+                </div>
+            </section>
+
+            <!-- Section 3: 功能亮点 -->
+            <section class="section" data-od-id="section-features">
+                <div class="section-title-wrapper">
+                    <svg class="section-title-icon" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
+                        <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                    <h2 class="section-title" data-od-id="section-title-features">功能亮点</h2>
+                </div>
+
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon-wrapper">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 6h16M4 12h16M4 18h7"/>
+                            </svg>
+                        </div>
+                        <h3 class="feature-title">折叠收纳</h3>
+                        <p class="feature-desc">可折叠存放于室内或车内的狭窄空间，节省存储空间。</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon-wrapper">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+                            </svg>
+                        </div>
+                        <h3 class="feature-title">快速安装</h3>
+                        <p class="feature-desc">三角形结构设计，显著提升稳定性，安装便捷快速。</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon-wrapper">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                            </svg>
+                        </div>
+                        <h3 class="feature-title">900W 功率 - 阻力可调</h3>
+                        <p class="feature-desc">降噪阻力轮设计，有效减少旋转噪音，提供安静的训练环境。</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon-wrapper">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="3"/>
+                                <path d="M12 1v6m0 6v6m5.196-14.196l-4.242 4.242m0 5.964l4.242 4.242M23 12h-6m-6 0H1m14.196 5.196l-4.242-4.242m0-5.964l4.242-4.242"/>
+                            </svg>
+                        </div>
+                        <h3 class="feature-title">多模式阻力系统</h3>
+                        <p class="feature-desc">模拟常规骑行、爬坡阻力以及高强度爬坡阻力。</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon-wrapper">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+                            </svg>
+                        </div>
+                        <h3 class="feature-title">精准压力调节器</h3>
+                        <p class="feature-desc">可根据个人需求精准调节训练强度，定制化训练体验。</p>
+                    </div>
+                </div>
+
+                <div class="features-image-container">
+                    <img src="image/product.jpg" alt="骑行台功能亮点展示图" class="features-image" data-od-id="features-image">
+                </div>
+            </section>
+
+            <!-- Section 4: 产品清单 -->
+            <section class="section" data-od-id="section-package">
+                <div class="section-title-wrapper">
+                    <svg class="section-title-icon" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
+                        <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                        <line x1="12" y1="22.08" x2="12" y2="12"/>
+                    </svg>
+                    <h2 class="section-title" data-od-id="section-title-package">产品清单</h2>
+                </div>
+
+                <div class="package-layout">
+                    <div class="package-list">
+                        <div class="package-item">主体支架</div>
+                        <div class="package-item">阻力电机</div>
+                        <div class="package-item">调节器</div>
+                        <div class="package-item">扳手</div>
+                        <div class="package-item">前轮垫块</div>
+                        <div class="package-item">螺丝包</div>
+                        <div class="package-item">内六角扳手</div>
+                        <div class="package-item">快拆杆</div>
+                    </div>
+                    <div class="package-image-container">
+                        <svg class="corner-badge" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="30" cy="30" r="28" fill="#3b82f6"/>
+                            <path d="M20 30 L27 37 L40 23" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <img src="image/product.jpg" alt="骑行台产品包装清单图" class="package-image" data-od-id="package-image">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 5: 适配尺寸 -->
+            <section class="section" data-od-id="section-dimensions">
+                <div class="section-title-wrapper">
+                    <svg class="section-title-icon" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
+                        <path d="M21 21H3V3"/>
+                        <path d="M21 9l-6 6-4-4-6 6"/>
+                    </svg>
+                    <h2 class="section-title" data-od-id="section-title-dimensions">适配尺寸</h2>
+                </div>
+
+                <div class="dimensions-layout">
+                    <div class="dimensions-info">
+                        <div class="dimension-group">
+                            <div class="dimension-label">外形尺寸（高 × 宽 × 深）</div>
+                            <div class="dimension-value">15.74" × 18.5" × 21.65"</div>
+                        </div>
+                        <div class="dimension-group">
+                            <div class="dimension-label">开挡间距</div>
+                            <div class="dimension-value">112 - 210 毫米</div>
+                        </div>
+                        <div class="dimension-group">
+                            <div class="dimension-label">适用轮径</div>
+                            <div class="dimension-value">26-28英寸及700C</div>
+                        </div>
+
+                        <div class="compatibility-info">
+                            <div class="compatibility-title">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                兼容性说明
+                            </div>
+                            <ul class="compatibility-list">
+                                <li class="compatibility-item">支持26至29英寸山地车及公路车</li>
+                                <li class="compatibility-item">兼容700C标准公路车轮组</li>
+                                <li class="compatibility-item">可调节开挡间距适应不同车架</li>
+                                <li class="compatibility-item">快拆杆设计便于快速装卸</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="dimensions-image-container">
+                        <img src="image/product.jpg" alt="骑行台尺寸示意图" class="dimensions-image" data-od-id="dimensions-image">
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        function exportImage(format) {
+            const captureArea = document.getElementById('capture-area');
+
+            if (typeof html2canvas === 'undefined') {
+                alert('导出功能加载失败，请检查网络连接或刷新页面重试。');
+                return;
+            }
+
+            const exportBtn = document.querySelector('.export-btn');
+            const originalText = exportBtn.innerHTML;
+            exportBtn.innerHTML = '导出中...';
+            exportBtn.disabled = true;
+
+            html2canvas(captureArea, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff',
+                logging: true,
+                scrollY: 0,
+                imageTimeout: 15000,
+                onclone: function(clonedDoc) {
+                    const clonedImages = clonedDoc.querySelectorAll('img');
+                    clonedImages.forEach(img => {
+                        img.style.visibility = 'visible';
+                        img.style.display = 'block';
+                    });
+                }
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `bike-trainer-details.${format}`;
+
+                if (format === 'jpg') {
+                    link.href = canvas.toDataURL('image/jpeg', 0.95);
+                } else {
+                    link.href = canvas.toDataURL('image/png');
+                }
+
+                link.click();
+                exportBtn.innerHTML = originalText;
+                exportBtn.disabled = false;
+            }).catch(error => {
+                console.error('导出失败:', error);
+                alert('导出失败，可能原因：\n1. 图片加载失败\n2. 浏览器安全限制\n\n建议：使用本地服务器打开此文件');
+                exportBtn.innerHTML = originalText;
+                exportBtn.disabled = false;
+            });
+        }
+
+        window.addEventListener('load', function() {
+            if (typeof html2canvas === 'undefined') {
+                console.error('html2canvas库加载失败');
+            } else {
+                console.log('html2canvas库加载成功');
+            }
+        });
+    </script>
+</body>
+</html>

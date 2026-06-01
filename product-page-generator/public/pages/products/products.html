@@ -1,0 +1,64 @@
+<div class="card">
+    <div class="card-header">
+        <h3>产品管理</h3>
+        <div style="display: flex; gap: 8px;">
+            <button class="btn btn-success btn-sm" onclick="app.exportFullCsv()">📤 导出完整CSV</button>
+            <button class="btn btn-secondary btn-sm" onclick="app.exportSimpleCsv()">📄 导出基础CSV</button>
+            <button class="btn btn-secondary btn-sm" onclick="app.openImportModal()">📥 导入CSV</button>
+            <button class="btn btn-primary btn-sm" onclick="showAddProductModal()">+ 新增产品</button>
+        </div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>SKU</th>
+                <th>产品名称</th>
+                <th>价格</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="productsBody">
+            <tr><td colspan="6" class="empty-state">加载中...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div id="detailTab" class="hidden">
+    <div class="card">
+        <div class="card-header">
+            <h3 id="detailProductName">产品详情</h3>
+        </div>
+        <div class="product-detail-grid">
+            <div>
+                <div class="form-group">
+                    <label>产品ID</label>
+                    <input type="text" id="detailProductId" readonly>
+                </div>
+                <div class="form-group">
+                    <label>SKU</label>
+                    <input type="text" id="showSku" readonly>
+                </div>
+                <div class="form-group">
+                    <label>价格</label>
+                    <input type="text" id="showPrice" readonly>
+                </div>
+                <div class="form-group">
+                    <label>副标题</label>
+                    <input type="text" id="showSubtitle" readonly>
+                </div>
+            </div>
+            <div>
+                <div class="form-group">
+                    <label>状态</label>
+                    <input type="text" id="showStatus" readonly>
+                </div>
+                <div class="form-group">
+                    <label>描述</label>
+                    <textarea id="showDescription" readonly></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

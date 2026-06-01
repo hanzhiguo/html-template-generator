@@ -1,0 +1,40 @@
+<div class="modal-overlay" id="importModal">
+    <div class="modal" style="max-width: 700px;">
+        <div class="modal-header">
+            <h3>导入CSV数据</h3>
+            <button class="modal-close" onclick="app.closeImportModal()">×</button>
+        </div>
+        <div style="padding: 20px 0;">
+            <div class="csv-drop-zone">
+                <div style="font-size: 48px; margin-bottom: 16px;">📄</div>
+                <p style="color: #64748b; margin-bottom: 16px;">拖拽CSV文件到此处，或点击选择文件</p>
+                <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="app.handleFileSelect(event)">
+                <button class="btn btn-primary" style="width: auto;" onclick="document.getElementById('csvFileInput').click()">选择CSV文件</button>
+                <p style="color: #94a3b8; font-size: 12px; margin-top: 12px;">支持UTF-8编码的CSV文件</p>
+            </div>
+
+            <div id="csvPreview" class="hidden" style="margin-top: 20px;">
+                <h4 style="margin-bottom: 12px; color: #1e40af;">数据预览</h4>
+                <div style="background: #f8fafc; border-radius: 8px; padding: 16px; max-height: 300px; overflow-y: auto;">
+                    <table class="csv-preview-table">
+                        <thead id="csvPreviewHead"></thead>
+                        <tbody id="csvPreviewBody"></tbody>
+                    </table>
+                </div>
+                <div id="csvStats" class="csv-stats"></div>
+                <div style="margin-top: 20px; display: flex; gap: 12px; justify-content: flex-end;">
+                    <button class="btn btn-secondary" style="width:auto;" onclick="app.closeImportModal()">取消</button>
+                    <button class="btn btn-success" style="width:auto;" onclick="app.importCsvData()">确认导入</button>
+                </div>
+            </div>
+
+            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                <p style="color: #64748b; font-size: 13px; margin-bottom: 12px;">
+                    <strong>CSV格式说明：</strong>必须包含列：产品ID, SKU, 产品名称, 数据类型, 项目, 值<br>
+                    数据类型包括：核心卖点、产品规格、包装清单、功能亮点、适配尺寸
+                </p>
+                <button class="btn btn-secondary btn-sm" style="width:auto;" onclick="app.downloadTemplate()">下载CSV模板</button>
+            </div>
+        </div>
+    </div>
+</div>

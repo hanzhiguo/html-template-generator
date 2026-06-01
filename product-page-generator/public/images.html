@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>图片管理 - 产品详情页生成系统</title>
+  <!-- 预览模态框样式 -->
+  <link rel="stylesheet" href="components/preview-modal/preview-modal.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { color: #1e40af; margin-bottom: 20px; }
+    .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .product-selector { display: flex; gap: 10px; margin-bottom: 20px; }
+    .product-selector select { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+    .upload-area { border: 2px dashed #ccc; border-radius: 8px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.3s; }
+    .upload-area:hover { border-color: #1e40af; background: #f8f9ff; }
+    .upload-area.dragover { border-color: #1e40af; background: #e8f0ff; }
+    .upload-icon { font-size: 48px; margin-bottom: 10px; }
+    .naming-guide { background: #f0f9ff; padding: 15px; border-radius: 6px; margin-top: 15px; font-size: 13px; color: #666; }
+    .naming-guide code { background: #e0e7ff; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+    .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin-top: 20px; }
+    .image-item { background: #f9f9f9; border-radius: 6px; overflow: hidden; position: relative; }
+    .image-item img { width: 100%; height: 120px; object-fit: cover; }
+    .image-item .type-badge { position: absolute; top: 5px; left: 5px; background: #1e40af; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+    .image-item .delete-btn { position: absolute; top: 5px; right: 5px; background: #ef4444; color: white; border: none; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; font-size: 12px; }
+    .image-info { padding: 8px; font-size: 12px; color: #666; }
+    .btn { background: #1e40af; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .btn:hover { background: #1e3a8a; }
+    .btn-secondary { background: #6b7280; }
+    .btn-secondary:hover { background: #4b5563; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-success { background: #10b981; }
+    .btn-success:hover { background: #059669; }
+    .toast { position: fixed; bottom: 20px; right: 20px; background: #10b981; color: white; padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 9999; }
+    .toast.error { background: #ef4444; }
+    input[type="file"] { display: none; }
+    .progress { width: 100%; height: 4px; background: #e5e7eb; border-radius: 2px; margin-top: 10px; display: none; }
+    .progress-bar { height: 100%; background: #1e40af; border-radius: 2px; width: 0%; transition: width 0.3s; }
+    /* 预览按钮样式 */
+    .preview-btn { background: #8b5cf6; margin-left: 10px; }
+    .preview-btn:hover { background: #7c3aed; }
+  </style>
+</head>
+<body>
+  <!-- 预览模态框 -->
+  <div class="preview-modal-overlay" id="previewModal">
+    <div class="preview-modal">
+      <div class="preview-modal-header">
+        <h3 id="previewTitle">产品详情预览</h3>
+        <div class="preview-template-selector">
+          <label for="templateType">模板:</label>
+          <select id="templateType" onchange="app.switchTemplate(this.value)">
+            <option value="detail">详情页</option>
+            <option value="main-image">主图模板</option>
+            <option value="manual">手册 (9:16)</option>
+          </select>
+          <span class="preview-page-indicator" id="previewPageIndicator">第 1/1 页</span>
+          <button class="btn btn-sm" onclick="app.prevPage()" id="prevPageBtn" style="display:none;">◀</button>
+          <button class="btn btn-sm" onclick="app.nextPage()" id="nextPageBtn" style="display:none;">▶</button>
+        </div>
+        <div class="preview-actions">
+          <button class="btn btn-success btn-sm" onclick="app.exportPreview('jpg')">📷 导出JPG</button>
+          <button class="btn btn-secondary btn-sm" onclick="app.exportPreview('png')">🖼️ 导出PNG</button>
+          <button class="modal-close" onclick="app.closePreview()">×</button>
+        </div>
+      </div>
+      <div class="preview-modal-body" id="previewContent"></div>
+      <div class="preview-main-image-settings" id="mainImageSettings" style="display:none;">
+        <div class="settings-row">
+          <div class="settings-group">
+            <label>标题颜色</label>
+            <div class="color-preset-wrapper">
+              <button class="color-preset active" data-target="title" data-color="#ffffff" style="background:#fff;color:#000;">白</button>
+              <button class="color-preset" data-target="title" data-color="#000000" style="background:#000;color:#fff;">黑</button>
+              <button class="color-preset" data-target="title" data-color="#9ca3af" style="background:#9ca3af;color:#fff;">灰</button>
+            </div>
+            <input type="color" id="mainImageTitleColor" value="#ffffff" oninput="app.setCustomColor('title',this.value)" style="width:32px;height:28px;border:none;cursor:pointer;">
+          </div>
+          <div class="settings-group">
+            <label>副标题颜色</label>
+            <div class="color-preset-wrapper">
+              <button class="color-preset active" data-target="subtitle" data-color="rgba(255,255,255,0.85)" style="background:#fff;color:#000;">白</button>
+              <button class="color-preset" data-target="subtitle" data-color="#000000" style="background:#000;color:#fff;">黑</button>
+              <button class="color-preset" data-target="subtitle" data-color="#9ca3af" style="background:#9ca3af;color:#fff;">灰</button>
+            </div>
+            <input type="color" id="mainImageSubtitleColor" value="rgba(255,255,255,0.85)" oninput="app.setCustomColor('subtitle',this.value)" style="width:32px;height:28px;border:none;cursor:pointer;">
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-group">
+            <label>水平位置</label>
+            <div class="position-buttons">
+              <button class="pos-btn" data-position="left" onclick="app.setMainImagePosition('left')">◀ 左</button>
+              <button class="pos-btn active" data-position="center" onclick="app.setMainImagePosition('center')">● 中</button>
+              <button class="pos-btn" data-position="right" onclick="app.setMainImagePosition('right')">右 ▶</button>
+            </div>
+          </div>
+          <div class="settings-group">
+            <label>垂直位置</label>
+            <div class="position-buttons">
+              <button class="pos-btn" data-vposition="top" onclick="app.setMainImageVPosition('top')">▲ 上</button>
+              <button class="pos-btn active" data-vposition="center" onclick="app.setMainImageVPosition('center')">● 中</button>
+              <button class="pos-btn" data-vposition="bottom" onclick="app.setMainImageVPosition('bottom')">▼ 下</button>
+            </div>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-group">
+            <label>标题大小</label>
+            <input type="range" id="mainImageTitleSize" min="24" max="100" value="56" oninput="app.setTitleSize(this.value)">
+            <span id="titleSizeValue">56px</span>
+          </div>
+          <div class="settings-group">
+            <label>副标题大小</label>
+            <input type="range" id="mainImageSubtitleSize" min="14" max="60" value="28" oninput="app.setSubtitleSize(this.value)">
+            <span id="subtitleSizeValue">28px</span>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-group">
+            <label>背景颜色</label>
+            <div class="bg-color-preset-wrapper">
+              <button class="bg-color-preset" data-bg-color="#e5e7eb" onclick="app.setBgColor('#e5e7eb')" style="background:#e5e7eb;"></button>
+              <button class="bg-color-preset active" data-bg-color="#f5f5f5" onclick="app.setBgColor('#f5f5f5')" style="background:#f5f5f5;"></button>
+              <button class="bg-color-preset" data-bg-color="#1e293b" onclick="app.setBgColor('#1e293b')" style="background:#1e293b;"></button>
+              <button class="bg-color-preset" data-bg-color="#fef3c7" onclick="app.setBgColor('#fef3c7')" style="background:#fef3c7;"></button>
+              <button class="bg-color-preset" data-bg-color="#dbeafe" onclick="app.setBgColor('#dbeafe')" style="background:#dbeafe;"></button>
+              <button class="bg-color-preset" data-bg-color="#fce7f3" onclick="app.setBgColor('#fce7f3')" style="background:#fce7f3;"></button>
+              <input type="text" id="mainImageBgColor" value="#f5f5f5" placeholder="#f5f5f5" onchange="app.setBgColor(this.value)" class="bg-color-input">
+            </div>
+          </div>
+          <div class="settings-group">
+            <label>图层遮罩</label>
+            <div class="overlay-buttons">
+              <button class="overlay-btn" data-overlay="none" onclick="app.setOverlayType('none')">无</button>
+              <button class="overlay-btn active" data-overlay="dark" onclick="app.setOverlayType('dark')">深色</button>
+              <button class="overlay-btn" data-overlay="light" onclick="app.setOverlayType('light')">浅色</button>
+              <button class="overlay-btn" data-overlay="gradient" onclick="app.setOverlayType('gradient')">彩色</button>
+            </div>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-group">
+            <label>文字效果</label>
+            <div class="toggle-group">
+              <button class="toggle-btn active" data-key="textShadow" onclick="app.toggleStyle('textShadow')">阴影效果</button>
+              <button class="toggle-btn" data-key="textStroke" onclick="app.toggleStyle('textStroke')">描边效果</button>
+              <button class="toggle-btn active" data-key="titleBold" onclick="app.toggleStyle('titleBold')">标题加粗</button>
+              <button class="toggle-btn" data-key="bgOverlay" onclick="app.toggleStyle('bgOverlay')">背景遮罩</button>
+              <button class="toggle-btn" data-key="textBg" onclick="app.toggleStyle('textBg')">文字背景</button>
+            </div>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-group">
+            <label>排版装饰</label>
+            <div class="layout-buttons">
+              <button class="layout-btn active" data-layout="none" onclick="app.setLayoutStyle('none')">无</button>
+              <button class="layout-btn" data-layout="line-left" onclick="app.setLayoutStyle('line-left')">┃左竖线</button>
+              <button class="layout-btn" data-layout="line-top" onclick="app.setLayoutStyle('line-top')">━上横线</button>
+              <button class="layout-btn" data-layout="bracket" onclick="app.setLayoutStyle('bracket')">「」括号</button>
+              <button class="layout-btn" data-layout="dot-frame" onclick="app.setLayoutStyle('dot-frame')">◆ 菱形点</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h1>📷 图片管理</h1>
+
+    <div class="card">
+      <h3 style="margin-bottom: 15px;">选择产品</h3>
+      <div class="product-selector">
+        <select id="productSelect">
+          <option value="">-- 请选择产品 --</option>
+        </select>
+        <button class="btn" onclick="loadImages()">加载图片</button>
+        <button class="btn btn-secondary" onclick="bindByNaming()">🔗 自动绑定</button>
+        <button class="btn preview-btn" onclick="viewProductPreview()">👁️ 预览</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom: 15px;">上传图片</h3>
+      <div class="upload-area" id="uploadArea">
+        <div class="upload-icon">📁</div>
+        <p>点击或拖拽图片到此处上传</p>
+        <p style="color: #999; font-size: 12px; margin-top: 5px;">支持 JPG/PNG/GIF/WebP，最大 10MB</p>
+        <input type="file" id="fileInput" multiple accept="image/*">
+      </div>
+      <div class="progress" id="progress">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <div class="naming-guide">
+        <strong>📋 命名规则（用于自动识别）：</strong><br>
+        格式：<code>{SKU}_{类型}_{序号}.{扩展名}</code><br>
+        类型：<code>main</code> (主图) | <code>detail</code> (详情图) | <code>dimension</code> (尺寸图) | <code>gallery</code> (图库)<br>
+        示例：<code>PROD-S004_main.jpg</code> → 自动绑定为"主图"
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom: 15px;">已上传图片</h3>
+      <div class="preview-grid" id="imageGrid">
+        <p style="color: #999; text-align: center; grid-column: 1/-1;">请先选择产品并加载图片</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentProductId = null;
+    let currentImages = [];
+
+    // 获取认证头
+    function getAuthHeaders() {
+      const token = localStorage.getItem('token');
+      return { 'Authorization': 'Bearer ' + token };
+    }
+
+    async function init() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('请先登录');
+        location.href = '/index.html';
+        return;
+      }
+
+      // 获取产品列表
+      const resp = await fetch('/api/auth/me', {
+        headers: getAuthHeaders()
+      });
+
+      if (!resp.ok) {
+        alert('请先登录');
+        location.href = '/index.html';
+        return;
+      }
+
+      const user = await resp.json();
+
+      const productsResp = await fetch('/api/products', {
+        headers: getAuthHeaders()
+      });
+      const { products } = await productsResp.json();
+
+      const select = document.getElementById('productSelect');
+      products.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `${p.sku || ''} - ${p.name}`;
+        select.appendChild(opt);
+      });
+
+      if (products.length > 0) {
+        select.value = products[0].id;
+        loadImages();
+      }
+    }
+
+    async function loadImages() {
+      const productId = document.getElementById('productSelect').value;
+      if (!productId) return;
+
+      currentProductId = productId;
+      const resp = await fetch(`/api/images/${productId}/images`, {
+        headers: getAuthHeaders()
+      });
+      const data = await resp.json();
+
+      currentImages = data.images || [];
+      renderImages();
+    }
+
+    function renderImages() {
+      const grid = document.getElementById('imageGrid');
+
+      if (currentImages.length === 0) {
+        grid.innerHTML = '<p style="color: #999; text-align: center; grid-column: 1/-1;">暂无图片，请上传</p>';
+        return;
+      }
+
+      grid.innerHTML = currentImages.map(img => `
+        <div class="image-item" data-id="${img.id}">
+          <img src="${img.image_url}" alt="${img.alt_text || ''}" onerror="this.src='/placeholder.png'">
+          <span class="type-badge">${img.image_type}</span>
+          <button class="delete-btn" onclick="deleteImage(${img.id})">×</button>
+          <div class="image-info">${img.alt_text || img.image_url.split('/').pop()}</div>
+        </div>
+      `).join('');
+    }
+
+    async function deleteImage(imageId) {
+      if (!confirm('确定删除这张图片？')) return;
+
+      const resp = await fetch(`/api/images/${currentProductId}/images/${imageId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+
+      if (resp.ok) {
+        currentImages = currentImages.filter(i => i.id !== imageId);
+        renderImages();
+        showToast('删除成功');
+      }
+    }
+
+    async function bindByNaming() {
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = '绑定中...';
+
+      try {
+        const resp = await fetch('/api/images/bind-by-naming', {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+        const data = await resp.json();
+
+        showToast(data.message);
+        loadImages();
+      } catch (err) {
+        showToast('绑定失败', true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔗 自动绑定';
+      }
+    }
+
+    // 文件上传
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+
+    uploadArea.addEventListener('click', () => fileInput.click());
+    uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+    uploadArea.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    });
+    fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+    async function handleFiles(files) {
+      if (!currentProductId) {
+        alert('请先选择产品');
+        return;
+      }
+
+      const progress = document.getElementById('progress');
+      const progressBar = document.getElementById('progressBar');
+      progress.style.display = 'block';
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('image_type', detectImageType(file.name));
+
+        try {
+          const resp = await fetch(`/api/images/${currentProductId}/images`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: formData
+          });
+
+          if (resp.ok) {
+            const data = await resp.json();
+            currentImages.push(data);
+          }
+        } catch (err) {
+          console.error('上传失败:', err);
+        }
+
+        progressBar.style.width = ((i + 1) / files.length * 100) + '%';
+      }
+
+      progress.style.display = 'none';
+      progressBar.style.width = '0%';
+      renderImages();
+      showToast(`成功上传 ${files.length} 张图片`);
+    }
+
+    function detectImageType(filename) {
+      const name = filename.toLowerCase();
+      if (name.includes('main') || name.includes('hero') || name.includes('primary')) return 'main';
+      if (name.includes('dim') || name.includes('size') || name.includes('dimension')) return 'dimension';
+      if (name.includes('banner')) return 'banner';
+      return 'detail';
+    }
+
+    function showToast(message, isError = false) {
+      const toast = document.createElement('div');
+      toast.className = 'toast' + (isError ? ' error' : '');
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    init();
+  </script>
+
+  <!-- 预览模块脚本 -->
+  <script type="module">
+    import { MainImageEditor } from './js/modules/main-image-editor.js';
+    import { renderProductPreview } from './js/modules/preview-template.js';
+
+    window.app = {
+      currentProduct: null,
+      currentTemplate: 'detail',
+      currentPage: 0,
+      totalPages: 1,
+
+      openPreview(product) {
+        this.currentProduct = product;
+        this.currentTemplate = 'detail';
+        this.currentPage = 0;
+        document.getElementById('previewModal').classList.add('active');
+        document.getElementById('templateType').value = 'detail';
+        document.getElementById('prevPageBtn').style.display = 'none';
+        document.getElementById('nextPageBtn').style.display = 'none';
+        document.getElementById('previewPageIndicator').textContent = '第 1/1 页';
+        document.getElementById('previewContent').innerHTML = renderProductPreview(product, 'detail', 0, 'zh');
+        document.getElementById('mainImageSettings').style.display = 'none';
+      },
+
+      closePreview() {
+        document.getElementById('previewModal').classList.remove('active');
+      },
+
+      switchTemplate(templateType) {
+        this.currentTemplate = templateType;
+        this.currentPage = 0;
+        const content = document.getElementById('previewContent');
+        const prevBtn = document.getElementById('prevPageBtn');
+        const nextBtn = document.getElementById('nextPageBtn');
+        const pageIndicator = document.getElementById('previewPageIndicator');
+        const settings = document.getElementById('mainImageSettings');
+
+        if (templateType === 'main-image') {
+          settings.style.display = '';
+          MainImageEditor.init();
+          MainImageEditor.setProduct(this.currentProduct, []);
+          prevBtn.style.display = MainImageEditor.totalPages > 1 ? '' : 'none';
+          nextBtn.style.display = MainImageEditor.totalPages > 1 ? '' : 'none';
+        } else {
+          settings.style.display = 'none';
+          if (templateType === 'manual') {
+            this.totalPages = 7;
+            prevBtn.style.display = this.totalPages > 1 ? '' : 'none';
+            nextBtn.style.display = this.totalPages > 1 ? '' : 'none';
+            pageIndicator.textContent = `第 1/${this.totalPages} 页`;
+          } else {
+            prevBtn.style.display = 'none';
+            nextBtn.style.display = 'none';
+            pageIndicator.textContent = '第 1/1 页';
+          }
+          content.innerHTML = renderProductPreview(this.currentProduct, templateType, 0, 'zh');
+        }
+      },
+
+      prevPage() {
+        if (this.currentTemplate === 'main-image') {
+          MainImageEditor.prevPage();
+        } else if (this.currentTemplate === 'manual') {
+          if (this.currentPage > 0) {
+            this.currentPage--;
+            document.getElementById('previewContent').innerHTML = renderProductPreview(this.currentProduct, 'manual', this.currentPage, 'zh');
+            document.getElementById('previewPageIndicator').textContent = `第 ${this.currentPage + 1}/${this.totalPages} 页`;
+          }
+        }
+      },
+
+      nextPage() {
+        if (this.currentTemplate === 'main-image') {
+          MainImageEditor.nextPage();
+        } else if (this.currentTemplate === 'manual') {
+          if (this.currentPage < this.totalPages - 1) {
+            this.currentPage++;
+            document.getElementById('previewContent').innerHTML = renderProductPreview(this.currentProduct, 'manual', this.currentPage, 'zh');
+            document.getElementById('previewPageIndicator').textContent = `第 ${this.currentPage + 1}/${this.totalPages} 页`;
+          }
+        }
+      },
+
+      async exportPreview(format) {
+        if (this.currentTemplate === 'main-image') {
+          await MainImageEditor.exportImage(format);
+          return;
+        }
+
+        const { default: html2canvas } = await import('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.esm.min.js');
+        const content = document.getElementById('previewContent');
+        const canvas = await html2canvas(content, {
+          scale: 2,
+          backgroundColor: '#ffffff',
+          width: content.scrollWidth,
+          height: content.scrollHeight,
+          windowWidth: content.scrollWidth,
+          windowHeight: content.scrollHeight
+        });
+        const link = document.createElement('a');
+        link.download = `${this.currentProduct?.name || 'product'}-${this.currentTemplate}.${format}`;
+        link.href = canvas.toDataURL(`image/${format}`, 0.95);
+        link.click();
+      },
+
+      setPresetColor(target, color) { MainImageEditor.style[target + 'Color'] = color; const input = document.getElementById('mainImage' + target.charAt(0).toUpperCase() + target.slice(1) + 'Color'); if (input) input.value = color; document.querySelectorAll('.color-preset[data-target="' + target + '"]').forEach(b => b.classList.toggle('active', b.dataset.color === color)); MainImageEditor._render(); },
+      setCustomColor(target, color) { MainImageEditor.style[target + 'Color'] = color; document.querySelectorAll('.color-preset[data-target="' + target + '"]').forEach(b => b.classList.remove('active')); MainImageEditor._render(); },
+      setTitleSize(size) { MainImageEditor.style.titleSize = parseInt(size); document.getElementById('titleSizeValue').textContent = size + 'px'; MainImageEditor._render(); },
+      setSubtitleSize(size) { MainImageEditor.style.subtitleSize = parseInt(size); document.getElementById('subtitleSizeValue').textContent = size + 'px'; MainImageEditor._render(); },
+      setMainImagePosition(position) { MainImageEditor.style.position = position; document.querySelectorAll('.pos-btn[data-position]').forEach(b => b.classList.toggle('active', b.dataset.position === position)); MainImageEditor._render(); },
+      setMainImageVPosition(vposition) { MainImageEditor.style.vposition = vposition; document.querySelectorAll('.pos-btn[data-vposition]').forEach(b => b.classList.toggle('active', b.dataset.vposition === vposition)); MainImageEditor._render(); },
+      toggleStyle(key) { MainImageEditor.style[key] = !MainImageEditor.style[key]; document.querySelectorAll('.toggle-btn[data-key="' + key + '"]').forEach(b => b.classList.toggle('active', !!MainImageEditor.style[key])); MainImageEditor._render(); },
+      setBgColor(color) { MainImageEditor.style.bgColor = color; const input = document.getElementById('mainImageBgColor'); if (input) input.value = color; document.querySelectorAll('.bg-color-preset[data-bg-color]').forEach(b => b.classList.toggle('active', b.dataset.bgColor === color)); MainImageEditor._render(); },
+      setOverlayType(type) { MainImageEditor.style.overlayType = type; document.querySelectorAll('.overlay-btn[data-overlay]').forEach(b => b.classList.toggle('active', b.dataset.overlay === type)); MainImageEditor._render(); },
+      setLayoutStyle(style) { MainImageEditor.style.layoutStyle = style; document.querySelectorAll('.layout-btn[data-layout]').forEach(b => b.classList.toggle('active', b.dataset.layout === style)); MainImageEditor._render(); }
+    };
+
+    window.viewProductPreview = async function() {
+      const productId = document.getElementById('productSelect').value;
+      if (!productId) { alert('请先选择产品'); return; }
+      const token = localStorage.getItem('token');
+      try {
+        const resp = await fetch(`/api/products/${productId}`, { headers: { 'Authorization': 'Bearer ' + token } });
+        const data = await resp.json();
+        window.app.openPreview(data);
+      } catch (err) {
+        console.error('加载产品详情失败:', err);
+        alert('加载产品详情失败');
+      }
+    };
+  </script>
+</body>
+</html>

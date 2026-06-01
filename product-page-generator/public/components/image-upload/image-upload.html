@@ -1,0 +1,15 @@
+<div class="image-upload-area" id="imageUploadArea">
+    <div style="font-size: 48px; margin-bottom: 16px;">📁</div>
+    <p>点击或拖拽图片到此处上传</p>
+    <p style="color: #999; font-size: 12px; margin-top: 5px;">支持 JPG/PNG/GIF/WebP，最大 10MB</p>
+    <input type="file" id="imageFileInput" multiple accept="image/*" style="display: none;" onchange="app.handleImageFiles(this.files)">
+</div>
+<div class="image-progress" id="imageProgress" style="display: none;">
+    <div class="image-progress-bar" id="imageProgressBar"></div>
+</div>
+<div style="background: #f0f9ff; padding: 15px; border-radius: 6px; margin-top: 15px; font-size: 13px; color: #666;">
+    <strong>📋 命名规则（用于自动识别）：</strong><br>
+    格式：<code>{SKU}_{类型}_{序号}.{扩展名}</code><br>
+    类型：<code>main</code> (主图) | <code>detail</code> (详情图) | <code>dimension</code> (尺寸图) | <code>gallery</code> (图库)<br>
+    示例：<code>PROD-S004_main.jpg</code> → 自动绑定为"主图"
+</div>

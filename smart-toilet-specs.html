@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能马桶 - 参数信息</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #1a1a1a;
+            --secondary-color: #333;
+            --text-gray: #666;
+            --border-color: #e8e8e8;
+            --bg-light: #fafafa;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background-color: #f0f2f5;
+            color: var(--primary-color);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        .header-section {
+            padding: 50px 60px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header-title {
+            font-size: 42px;
+            font-weight: 900;
+            letter-spacing: 3px;
+            color: var(--primary-color);
+        }
+
+        .header-subtitle {
+            font-size: 16px;
+            color: var(--text-gray);
+            letter-spacing: 1px;
+        }
+
+        .specs-section {
+            padding: 45px 60px;
+        }
+
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 28px 80px;
+        }
+
+        .spec-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .spec-label {
+            font-size: 17px;
+            color: var(--text-gray);
+            flex-shrink: 0;
+        }
+
+        .spec-value {
+            font-size: 17px;
+            color: var(--primary-color);
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .temp-section {
+            margin-top: 35px;
+            padding-top: 25px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .temp-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 18px;
+            gap: 20px;
+        }
+
+        .temp-label {
+            font-size: 17px;
+            color: var(--text-gray);
+            min-width: 90px;
+            flex-shrink: 0;
+        }
+
+        .temp-options {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .temp-option {
+            font-size: 16px;
+            color: var(--primary-color);
+            padding: 8px 20px;
+            background-color: var(--bg-light);
+            border-radius: 6px;
+            font-weight: 500;
+            min-width: 70px;
+            text-align: center;
+        }
+
+        .product-image-section {
+            padding: 50px 60px;
+            text-align: center;
+            background-color: var(--bg-light);
+        }
+
+        .product-main-image {
+            max-width: 500px;
+            width: 100%;
+            height: auto;
+            margin: 0 auto 40px;
+            display: block;
+        }
+
+        .product-detail-images {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .detail-image {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .export-buttons {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 12px;
+            z-index: 1000;
+        }
+
+        .export-btn {
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .export-btn-jpg {
+            background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 20px auto;
+                border-radius: 8px;
+            }
+
+            .header-section {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 35px 30px 25px;
+                gap: 10px;
+            }
+
+            .header-title {
+                font-size: 32px;
+                letter-spacing: 2px;
+            }
+
+            .header-subtitle {
+                font-size: 14px;
+            }
+
+            .specs-section {
+                padding: 35px 30px;
+            }
+
+            .specs-grid {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+
+            .spec-label,
+            .spec-value {
+                font-size: 15px;
+            }
+
+            .temp-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .temp-label {
+                min-width: auto;
+            }
+
+            .temp-option {
+                font-size: 14px;
+                padding: 6px 16px;
+            }
+
+            .product-image-section {
+                padding: 35px 25px;
+            }
+
+            .product-detail-images {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-title {
+                font-size: 28px;
+            }
+
+            .spec-label,
+            .spec-value {
+                font-size: 14px;
+            }
+
+            .specs-grid {
+                gap: 22px 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="export-buttons">
+        <button class="export-btn export-btn-jpg" onclick="exportImage('jpg')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+            导出 JPG
+        </button>
+    </div>
+
+    <div class="container" id="capture-area">
+        <!-- Header Section -->
+        <div class="header-section">
+            <h1 class="header-title">参数信息</h1>
+            <p class="header-subtitle">陶者 | 智能卫浴生活</p>
+        </div>
+
+        <!-- Specifications Section -->
+        <div class="specs-section">
+            <div class="specs-grid">
+                <div class="spec-item">
+                    <span class="spec-label">产品型号：</span>
+                    <span class="spec-value">70097</span>
+                </div>
+                <div class="spec-item">
+                    <span class="spec-label">额定电源：</span>
+                    <span class="spec-value">220V·50Hz</span>
+                </div>
+
+                <div class="spec-item">
+                    <span class="spec-label">盖板材质：</span>
+                    <span class="spec-value">ABS材质</span>
+                </div>
+                <div class="spec-item">
+                    <span class="spec-label">防水等级：</span>
+                    <span class="spec-value">IPX4</span>
+                </div>
+
+                <div class="spec-item">
+                    <span class="spec-label">冲水方式：</span>
+                    <span class="spec-value">超漩虹吸式</span>
+                </div>
+                <div class="spec-item">
+                    <span class="spec-label">排水方式：</span>
+                    <span class="spec-value">地排</span>
+                </div>
+
+                <div class="spec-item">
+                    <span class="spec-label">尺寸：</span>
+                    <span class="spec-value">695*490*540mm</span>
+                </div>
+                <div class="spec-item">
+                    <span class="spec-label">包装毛重：</span>
+                    <span class="spec-value">57kg</span>
+                </div>
+
+                <div class="spec-item">
+                    <span class="spec-label">座高：</span>
+                    <span class="spec-value">420mm</span>
+                </div>
+                <div class="spec-item">
+                    <span class="spec-label">冲水量：</span>
+                    <span class="spec-value">4.8L</span>
+                </div>
+
+                <div class="spec-item">
+                    <span class="spec-label">坑距：</span>
+                    <span class="spec-value">300/350/400mm</span>
+                </div>
+                <div class="spec-item">
+                    <span class="spec-label">电线长度：</span>
+                    <span class="spec-value">1.5米</span>
+                </div>
+
+                <div class="spec-item">
+                    <span class="spec-label">陶瓷座圈（内径）：</span>
+                    <span class="spec-value">340*300mm</span>
+                </div>
+                <div class="spec-item">
+                    <span class="spec-label">盖板座圈（内径）：</span>
+                    <span class="spec-value">310*220mm</span>
+                </div>
+            </div>
+
+            <!-- Temperature Settings -->
+            <div class="temp-section">
+                <div class="temp-row">
+                    <span class="temp-label">水温四档：</span>
+                    <div class="temp-options">
+                        <span class="temp-option">常温</span>
+                        <span class="temp-option">34℃</span>
+                        <span class="temp-option">37℃</span>
+                        <span class="temp-option">40℃</span>
+                    </div>
+                </div>
+
+                <div class="temp-row">
+                    <span class="temp-label">风温四档：</span>
+                    <div class="temp-options">
+                        <span class="temp-option">常温</span>
+                        <span class="temp-option">45℃</span>
+                        <span class="temp-option">50℃</span>
+                        <span class="temp-option">55℃</span>
+                    </div>
+                </div>
+
+                <div class="temp-row">
+                    <span class="temp-label">座温四档：</span>
+                    <div class="temp-options">
+                        <span class="temp-option">常温</span>
+                        <span class="temp-option">34℃</span>
+                        <span class="temp-option">37℃</span>
+                        <span class="temp-option">40℃</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Images Section -->
+        <div class="product-image-section">
+            <img src="https://via.placeholder.com/500x450/fafafa/cccccc?text=Product+Main+Image+with+Dimensions"
+                 alt="产品主图"
+                 class="product-main-image">
+
+            <div class="product-detail-images">
+                <img src="https://via.placeholder.com/320x240/fafafa/cccccc?text=Detail+View+1"
+                     alt="产品细节图1"
+                     class="detail-image">
+                <img src="https://via.placeholder.com/320x240/fafafa/cccccc?text=Detail+View+2"
+                     alt="产品细节图2"
+                     class="detail-image">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function exportImage(format) {
+            const captureArea = document.getElementById('capture-area');
+            
+            html2canvas(captureArea, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: false,
+                backgroundColor: '#ffffff',
+                logging: false
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `smart-toilet-specs.${format}`;
+                
+                if (format === 'jpg') {
+                    link.href = canvas.toDataURL('image/jpeg', 0.95);
+                } else {
+                    link.href = canvas.toDataURL('image/png');
+                }
+                
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>

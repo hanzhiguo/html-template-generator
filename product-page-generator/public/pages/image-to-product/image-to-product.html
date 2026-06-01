@@ -1,0 +1,57 @@
+<link rel="stylesheet" href="../../components/image-upload/image-upload.css">
+<div class="card">
+    <div class="card-header">
+        <h3>🖼️ 从图片添加产品</h3>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <span id="imageToProductStatus" style="font-size: 12px; color: #64748b;"></span>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div>
+            <div class="image-upload-area" id="imageToProductUploadArea" style="min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;" onclick="document.getElementById('imageToProductFileInput').click()">
+                <div style="font-size: 48px; margin-bottom: 16px;">📸</div>
+                <p>点击加载图片</p>
+                <p style="color: #999; font-size: 12px; margin-top: 5px;">支持 JPG/PNG/GIF/WebP，可上传多张</p>
+            </div>
+            <input type="file" id="imageToProductFileInput" multiple accept="image/*" style="display: none;" onchange="app.handleImageToProductFiles(this.files)">
+
+            <div id="imageToProductProgress" class="image-progress" style="display: none;">
+                <div class="image-progress-bar" id="imageToProductProgressBar"></div>
+            </div>
+
+            <div id="imageToProductPreviewGrid" class="images-preview-grid" style="margin-top: 16px;">
+                <p style="color: #999; text-align: center; grid-column: 1/-1;">请上传产品图片</p>
+            </div>
+
+            <button class="btn btn-primary" style="margin-top: 16px;" onclick="app.startImageToProductProcess()">
+                🔍 开始识别产品信息
+            </button>
+        </div>
+
+        <div>
+            <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                <h4 style="margin-bottom: 12px; color: #1e40af;">📝 OCR识别结果</h4>
+                <div id="imageToProductOcrResult" style="max-height: 200px; overflow-y: auto; background: white; padding: 12px; border-radius: 6px; font-size: 13px; color: #374151; white-space: pre-wrap; border: 1px solid #e5e7eb;">
+                    <span style="color: #94a3b8;">等待上传图片...</span>
+                </div>
+            </div>
+
+            <div style="background: #f0fdf4; padding: 16px; border-radius: 8px;">
+                <h4 style="margin-bottom: 12px; color: #065f46;">✨ 生成的产品信息</h4>
+                <div id="imageToProductGeneratedInfo" style="max-height: 250px; overflow-y: auto; font-size: 13px; color: #374151;">
+                    <div style="color: #94a3b8;">等待处理...</div>
+                </div>
+            </div>
+
+            <div style="margin-top: 16px; display: flex; gap: 8px;">
+                <button class="btn btn-success" style="flex: 1;" onclick="app.confirmAndCreateProduct()">
+                    ✅ 确认并添加到数据库
+                </button>
+                <button class="btn btn-secondary" onclick="app.regenerateProductInfo()">
+                    🔄 重新生成
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

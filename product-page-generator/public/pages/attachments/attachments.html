@@ -1,0 +1,158 @@
+<div class="attachments-page">
+    <div class="attachments-toolbar">
+        <div class="toolbar-left">
+            <select id="imageProductSelect" class="product-select">
+                <option value="">-- 选择产品 --</option>
+            </select>
+            <button class="btn btn-sm btn-primary" onclick="app.loadAttachments()">加载</button>
+        </div>
+        <div class="toolbar-right">
+            <button class="btn btn-sm" id="tabImagesBtn" onclick="app.switchAttachmentTab('images')">🖼️ 图片</button>
+            <button class="btn btn-sm btn-secondary" id="tabDocsBtn" onclick="app.switchAttachmentTab('documents')">📄 文档</button>
+        </div>
+    </div>
+
+    <div id="attachmentImagesSection" class="attachments-content">
+        <div class="attachments-layout">
+            <div class="attachments-slots">
+                <div class="slots-header">
+                    <h4>📍 详情页图片位置</h4>
+                    <span class="slots-hint">拖拽右侧图片到此处</span>
+                </div>
+                
+                <div class="slot-section">
+                    <div class="slot-section-title">🖼️ 首图区域</div>
+                    <div class="slot-section-grid">
+                        <div class="image-slot slot-main" data-slot="main">
+                            <div class="slot-label">主图 (白底)</div>
+                            <div class="slot-dropzone" id="slot-main">
+                                <span class="slot-placeholder">+</span>
+                            </div>
+                        </div>
+                        <div class="image-slot" data-slot="scene1">
+                            <div class="slot-label">场景图1</div>
+                            <div class="slot-dropzone" id="slot-scene1">
+                                <span class="slot-placeholder">+</span>
+                            </div>
+                        </div>
+                        <div class="image-slot" data-slot="scene2">
+                            <div class="slot-label">场景图2</div>
+                            <div class="slot-dropzone" id="slot-scene2">
+                                <span class="slot-placeholder">+</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="slot-section">
+                    <div class="slot-section-title">✨ 功能亮点 (细节图)</div>
+                    <div class="slot-section-grid grid-4">
+                        <div class="image-slot" data-slot="detail1">
+                            <div class="slot-label">细节图1</div>
+                            <div class="slot-dropzone" id="slot-detail1">
+                                <span class="slot-placeholder">+</span>
+                            </div>
+                        </div>
+                        <div class="image-slot" data-slot="detail2">
+                            <div class="slot-label">细节图2</div>
+                            <div class="slot-dropzone" id="slot-detail2">
+                                <span class="slot-placeholder">+</span>
+                            </div>
+                        </div>
+                        <div class="image-slot" data-slot="detail3">
+                            <div class="slot-label">细节图3</div>
+                            <div class="slot-dropzone" id="slot-detail3">
+                                <span class="slot-placeholder">+</span>
+                            </div>
+                        </div>
+                        <div class="image-slot" data-slot="detail4">
+                            <div class="slot-label">细节图4</div>
+                            <div class="slot-dropzone" id="slot-detail4">
+                                <span class="slot-placeholder">+</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="slot-section">
+                    <div class="slot-section-title">📐 规格尺寸</div>
+                    <div class="slot-section-grid">
+                        <div class="image-slot" data-slot="dimension">
+                            <div class="slot-label">尺寸图</div>
+                            <div class="slot-dropzone" id="slot-dimension">
+                                <span class="slot-placeholder">+</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="slot-section">
+                    <div class="slot-section-title">📦 包装清单</div>
+                    <div class="slot-section-grid">
+                        <div class="image-slot" data-slot="package">
+                            <div class="slot-label">包装清单图</div>
+                            <div class="slot-dropzone" id="slot-package">
+                                <span class="slot-placeholder">+</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="slots-actions">
+                    <button class="btn btn-sm btn-success" onclick="app.saveImageSlots()">💾 保存分配</button>
+                    <button class="btn btn-sm btn-secondary" onclick="app.clearImageSlots()">🗑️ 清空</button>
+                    <button class="btn btn-sm btn-secondary" onclick="app.bindByNaming()">🔗 自动绑定</button>
+                </div>
+            </div>
+
+            <div class="attachments-pool">
+                <div class="pool-header">
+                    <h4>🖼️ 图片库</h4>
+                    <button class="btn btn-sm btn-primary" onclick="document.getElementById('imageFileInput').click()">+ 上传</button>
+                </div>
+                <div class="image-upload-area" id="imageUploadArea">
+                    <p>拖拽图片到此处或点击上传</p>
+                    <p class="upload-hint">支持 JPG/PNG/WebP，建议白底主图 1000×1000px</p>
+                    <input type="file" id="imageFileInput" multiple accept="image/*" style="display: none;">
+                </div>
+                <div class="image-progress" id="imageProgress" style="display: none;">
+                    <div class="image-progress-bar" id="imageProgressBar"></div>
+                </div>
+                <div class="pool-grid" id="imagesGrid">
+                    <p class="pool-empty">请先选择产品并加载</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="attachmentDocumentsSection" class="attachments-content hidden">
+        <div class="documents-layout">
+            <div class="document-upload-area" id="documentUploadArea">
+                <div style="font-size: 36px; margin-bottom: 8px;">📄</div>
+                <p>点击或拖拽文档到此处上传</p>
+                <p style="color: #999; font-size: 12px;">支持 PDF/MP4/DOC/XLS/TXT，最大 100MB</p>
+                <input type="file" id="documentFileInput" multiple style="display: none;">
+            </div>
+            <div class="image-progress" id="documentProgress" style="display: none;">
+                <div class="image-progress-bar" id="documentProgressBar"></div>
+            </div>
+            <div class="local-doc-form">
+                <strong>🔗 链接本地文件</strong>
+                <div class="local-doc-fields">
+                    <input type="text" id="localDocTitle" placeholder="文档标题">
+                    <input type="text" id="localDocPath" placeholder="文件路径或URL">
+                    <select id="localDocType">
+                        <option value="manual">说明书</option>
+                        <option value="pdf">PDF</option>
+                        <option value="video">视频</option>
+                        <option value="spec">规格书</option>
+                    </select>
+                    <button class="btn btn-sm btn-success" onclick="app.linkLocalDocument()">添加</button>
+                </div>
+            </div>
+            <div class="documents-list" id="documentsGrid">
+                <p class="pool-empty">暂无文档</p>
+            </div>
+        </div>
+    </div>
+</div>

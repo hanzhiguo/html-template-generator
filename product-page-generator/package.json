@@ -1,0 +1,23 @@
+{
+  "name": "product-page-generator",
+  "version": "1.0.0",
+  "description": "AI-powered product page generator with database",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.17.0",
+    "bcryptjs": "^2.4.3",
+    "canvas": "^3.2.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "handlebars": "^4.7.8",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.1.1",
+    "openai": "^4.0.0",
+    "sql.js": "^1.10.3"
+  }
+}

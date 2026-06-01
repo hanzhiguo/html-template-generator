@@ -1,0 +1,99 @@
+.data-section {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.data-section-header {
+    background: #f8fafc;
+    padding: 12px 16px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 500;
+    color: #475569;
+}
+
+.data-section-header:hover {
+    background: #f1f5f9;
+}
+
+.toggle-icon {
+    font-size: 12px;
+    transition: transform 0.2s;
+}
+
+.data-section.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.data-section.collapsed .data-section-body {
+    display: none;
+}
+
+.data-section-body {
+    padding: 12px 16px;
+    background: white;
+}
+
+.data-list {
+    margin-bottom: 12px;
+}
+
+.data-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: #f9fafb;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.data-row:hover {
+    background: #f1f5f9;
+}
+
+.data-row input {
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 14px;
+    flex: 1;
+}
+
+.data-row input:focus {
+    border-color: #3b82f6;
+    outline: none;
+}
+
+.data-row .data-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.data-add-form {
+    display: none;
+    gap: 8px;
+    padding: 12px;
+    background: #fef3c7;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.data-add-form.active {
+    display: flex;
+}
+
+.data-add-form input {
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 14px;
+    flex: 1;
+    min-width: 120px;
+}

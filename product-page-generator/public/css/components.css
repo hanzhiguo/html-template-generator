@@ -1,0 +1,536 @@
+/*
+ * 组件样式 - 极简三色系统
+ * 白色50% + 灰色35% + 蓝色15%
+ * 版本: 2.0.0
+ */
+
+/* ========== 按钮系统 ========== */
+
+.btn {
+  padding: var(--space-3) var(--space-6);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: var(--font-family);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn-secondary {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-tertiary);
+}
+
+.btn-success {
+  background: var(--status-success);
+  color: var(--text-inverse);
+  border-color: var(--status-success);
+}
+
+.btn-success:hover {
+  opacity: 0.9;
+}
+
+.btn-danger {
+  background: var(--status-error);
+  color: var(--text-inverse);
+  border-color: var(--status-error);
+}
+
+.btn-danger:hover {
+  opacity: 0.9;
+}
+
+.btn-sm {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+}
+
+.btn-icon {
+  padding: var(--space-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.btn-icon:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* ========== 标签页系统 ========== */
+
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  background: var(--bg-hover);
+  padding: var(--space-1);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-6);
+  border: 1px solid var(--border-light);
+}
+
+.tab {
+  flex: 1;
+  padding: var(--space-3) var(--space-6);
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  font-family: var(--font-family);
+}
+
+.tab.active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.tab:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+.tab-bar {
+  display: flex;
+  gap: var(--space-1);
+  background: var(--bg-hover);
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-5);
+  flex-wrap: wrap;
+  border: 1px solid var(--border-light);
+}
+
+.tab-bar button {
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  font-family: var(--font-family);
+}
+
+.tab-bar button.active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.tab-bar button:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+.tab-item {
+  display: inline-flex !important;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.tab-item .tab-count {
+  background: var(--accent-light);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  color: var(--accent);
+}
+
+/* ========== 模态框系统 ========== */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: none;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: var(--space-10);
+  z-index: var(--z-modal);
+  overflow-y: auto;
+}
+
+.modal-overlay.active {
+  display: flex;
+  animation: fadeIn var(--transition-base);
+}
+
+.modal {
+  background: var(--bg-surface);
+  border-radius: var(--radius-xl);
+  width: 90%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: var(--space-8);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-xl);
+  animation: slideUp var(--transition-base);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+}
+
+.modal-header h3 {
+  font-size: var(--text-xl);
+  color: var(--text-primary);
+  font-weight: var(--font-semibold);
+}
+
+.modal-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--bg-hover);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: var(--text-lg);
+  color: var(--text-secondary);
+}
+
+.modal-close:hover {
+  background: var(--border-light);
+  color: var(--text-primary);
+}
+
+/* ========== Toast提示 ========== */
+
+.toast {
+  position: fixed;
+  bottom: var(--space-6);
+  right: var(--space-6);
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  z-index: var(--z-toast);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all var(--transition-base);
+  pointer-events: none;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.success {
+  background: var(--status-success);
+  color: var(--text-inverse);
+}
+
+.toast.error {
+  background: var(--status-error);
+  color: var(--text-inverse);
+}
+
+.toast.warning {
+  background: var(--status-warning);
+  color: var(--text-inverse);
+}
+
+/* ========== Excel风格表格 ========== */
+
+.excel-section {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  margin: var(--space-6) 0;
+  overflow: hidden;
+}
+
+.excel-header {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.excel-header h3 {
+  font-size: var(--text-base);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--font-semibold);
+}
+
+.excel-header .badge {
+  background: var(--accent-light);
+  color: var(--accent);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+}
+
+.excel-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.excel-table th {
+  background: var(--bg-hover);
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  font-weight: var(--font-semibold);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border-light);
+  border-right: 1px solid var(--border-light);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.excel-table th:last-child {
+  border-right: none;
+}
+
+.excel-table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-light);
+  border-right: 1px solid var(--border-light);
+  vertical-align: middle;
+}
+
+.excel-table td:last-child {
+  border-right: none;
+}
+
+.excel-table tr:hover td {
+  background: var(--bg-hover);
+}
+
+.excel-table input {
+  width: 100%;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+}
+
+.excel-table input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.excel-table .row-num {
+  width: 50px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  background: var(--bg-hover);
+}
+
+.excel-table .actions-cell {
+  width: 120px;
+  text-align: center;
+}
+
+.excel-table .btn-icon {
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  margin: 0 var(--space-1);
+}
+
+.excel-table .btn-edit {
+  background: var(--status-warning-bg);
+  color: var(--status-warning);
+}
+
+.excel-table .btn-edit:hover {
+  opacity: 0.8;
+}
+
+.excel-table .btn-del {
+  background: var(--status-error-bg);
+  color: var(--status-error);
+}
+
+.excel-table .btn-del:hover {
+  opacity: 0.8;
+}
+
+.excel-table .btn-save {
+  background: var(--status-success-bg);
+  color: var(--status-success);
+}
+
+.excel-table .btn-save:hover {
+  opacity: 0.8;
+}
+
+.excel-table .btn-add {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.excel-table .btn-add:hover {
+  opacity: 0.8;
+}
+
+.edit-mode td {
+  background: var(--status-warning-bg);
+}
+
+.edit-mode .row-num {
+  background: var(--status-warning-bg);
+}
+
+.excel-empty {
+  text-align: center;
+  padding: var(--space-10);
+  color: var(--text-tertiary);
+}
+
+.excel-empty .icon {
+  font-size: 48px;
+  margin-bottom: var(--space-4);
+}
+
+.excel-summary {
+  background: var(--bg-hover);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--border-light);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.excel-container {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  overflow: hidden;
+}
+
+.excel-toolbar {
+  background: var(--bg-hover);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.excel-toolbar .title {
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.excel-toolbar .count {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+}
+
+.add-row-form {
+  background: var(--bg-hover);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.add-row-form input {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  margin-right: var(--space-2);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+}
+
+.add-row-form button {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border: none;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  font-family: var(--font-family);
+}
+
+.add-row-form button:hover {
+  background: var(--accent-hover);
+}
+
+/* ========== 动画 ========== */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能马桶 - 高级图文混排展示</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            text-align: center;
+            color: #fff;
+            font-size: 32px;
+            font-weight: 700;
+            margin: 40px 0 30px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .demo-card {
+            background: #fff;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 50px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        /* ========== 方案A：渐变遮罩叠加 ========== */
+        .style-a {
+            position: relative;
+            height: 600px;
+            overflow: hidden;
+            background: url('image/product.jpg') center/cover no-repeat;
+        }
+
+        .style-a::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 70%;
+            background: linear-gradient(to top,
+                rgba(0,0,0,0.9) 0%,
+                rgba(0,0,0,0.6) 40%,
+                transparent 100%);
+            z-index: 1;
+        }
+
+        .style-a-content {
+            position: absolute;
+            bottom: 60px;
+            left: 60px;
+            right: 60px;
+            z-index: 2;
+            color: #fff;
+        }
+
+        .style-a-title {
+            font-size: 48px;
+            font-weight: 900;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+            text-shadow: 2px 4px 12px rgba(0,0,0,0.5);
+        }
+
+        .style-a-subtitle {
+            font-size: 22px;
+            opacity: 0.95;
+            margin-bottom: 30px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .style-a-specs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .spec-item {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            padding: 16px 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .spec-label {
+            font-size: 13px;
+            opacity: 0.85;
+            margin-bottom: 6px;
+        }
+
+        .spec-value {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        /* ========== 方案B：毛玻璃效果 ========== */
+        .style-b {
+            position: relative;
+            height: 600px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+        }
+
+        .style-b-image {
+            position: absolute;
+            width: 55%;
+            height: 90%;
+            object-fit: contain;
+            right: 80px;
+            top: 50%;
+            transform: translateY(-50%);
+            filter: drop-shadow(0 20px 40px rgba(0,0,0,0.2));
+            z-index: 1;
+        }
+
+        .style-b-content {
+            position: relative;
+            z-index: 2;
+            max-width: 480px;
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 45px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .style-b-title {
+            font-size: 42px;
+            font-weight: 900;
+            color: #1a1a1a;
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+        }
+
+        .style-b-brand {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 25px;
+            font-weight: 500;
+            letter-spacing: 2px;
+        }
+
+        .style-b-desc {
+            font-size: 17px;
+            color: #444;
+            line-height: 1.7;
+            margin-bottom: 28px;
+        }
+
+        .style-b-features {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 16px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .feature-icon {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        /* ========== 方案C：混合模式 ========== */
+        .style-c {
+            position: relative;
+            height: 650px;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .style-c-bg-pattern {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0.08;
+            background-image:
+                radial-gradient(circle at 25% 25%, white 2px, transparent 2px),
+                radial-gradient(circle at 75% 75%, white 2px, transparent 2px);
+            background-size: 60px 60px;
+        }
+
+        .style-c-image {
+            position: absolute;
+            width: 65%;
+            height: 95%;
+            object-fit: contain;
+            right: 60px;
+            top: 50%;
+            transform: translateY(-50%);
+            mix-blend-mode: screen;
+            opacity: 0.9;
+            filter: brightness(1.2) contrast(1.1);
+            z-index: 1;
+        }
+
+        .style-c-content {
+            position: relative;
+            z-index: 2;
+            left: 80px;
+            max-width: 450px;
+        }
+
+        .style-c-title {
+            font-size: 56px;
+            font-weight: 900;
+            color: #fff;
+            margin-bottom: 20px;
+            letter-spacing: 3px;
+            mix-blend-mode: overlay;
+            text-shadow: 0 0 40px rgba(255,255,255,0.3);
+        }
+
+        .style-c-tagline {
+            font-size: 24px;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 35px;
+            font-weight: 300;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .style-c-specs-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+        }
+
+        .spec-card {
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(15px);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.15);
+            transition: all 0.3s ease;
+        }
+
+        .spec-card:hover {
+            background: rgba(255,255,255,0.12);
+            transform: translateY(-3px);
+        }
+
+        .spec-card-label {
+            font-size: 13px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .spec-card-value {
+            font-size: 22px;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        /* 导出按钮 */
+        .export-buttons {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 12px;
+            z-index: 9999;
+        }
+
+        .export-btn {
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            color: #fff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+        }
+
+        @media (max-width: 1024px) {
+            .style-a-specs {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .style-b-image {
+                width: 50%;
+                right: 40px;
+            }
+
+            .style-c-image {
+                width: 55%;
+                right: 40px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .style-a {
+                height: auto;
+                min-height: 500px;
+            }
+
+            .style-a-content {
+                bottom: 30px;
+                left: 30px;
+                right: 30px;
+            }
+
+            .style-a-title {
+                font-size: 32px;
+            }
+
+            .style-a-specs {
+                grid-template-columns: 1fr;
+            }
+
+            .style-b {
+                flex-direction: column;
+                height: auto;
+                padding: 40px 25px;
+                gap: 30px;
+            }
+
+            .style-b-image {
+                position: relative;
+                width: 80%;
+                height: 350px;
+                right: auto;
+                top: auto;
+                transform: none;
+            }
+
+            .style-b-content {
+                max-width: 100%;
+            }
+
+            .style-c {
+                flex-direction: column;
+                height: auto;
+                padding: 50px 25px;
+                gap: 40px;
+            }
+
+            .style-c-image {
+                position: relative;
+                width: 85%;
+                height: 400px;
+                right: auto;
+                top: auto;
+                transform: none;
+            }
+
+            .style-c-content {
+                left: 0;
+                max-width: 100%;
+            }
+
+            .style-c-title {
+                font-size: 38px;
+            }
+
+            .section-title {
+                font-size: 26px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="export-buttons">
+        <button class="export-btn" onclick="exportAllImages()">
+            <span>📥</span> 导出全部效果图
+        </button>
+    </div>
+
+    <div class="demo-container" id="capture-area">
+        <!-- 方案A：渐变遮罩 -->
+        <h2 class="section-title">方案 A · 渐变遮罩叠加</h2>
+        <div class="demo-card style-a" id="style-a">
+            <div class="style-a-content">
+                <h1 class="style-a-title">SMART TOILET<br>智能马桶</h1>
+                <p class="style-a-subtitle">陶者 · 智能卫浴生活 · 重新定义舒适体验</p>
+                <div class="style-a-specs">
+                    <div class="spec-item">
+                        <div class="spec-label">冲水方式</div>
+                        <div class="spec-value">超漩虹吸式</div>
+                    </div>
+                    <div class="spec-item">
+                        <div class="spec-label">防水等级</div>
+                        <div class="spec-value">IPX4</div>
+                    </div>
+                    <div class="spec-item">
+                        <div class="spec-label">座温调节</div>
+                        <div class="spec-value">34-40℃</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 方案B：毛玻璃效果 -->
+        <h2 class="section-title">方案 B · 毛玻璃悬浮卡</h2>
+        <div class="demo-card style-b" id="style-b">
+            <img src="image/product.jpg" alt="智能马桶" class="style-b-image">
+            <div class="style-b-content">
+                <h1 class="style-b-title">智能马桶</h1>
+                <p class="style-b-brand">TAOZHE / 陶者卫浴</p>
+                <p class="style-b-desc">采用超漩虹吸技术，四档温控系统，为您带来前所未有的智能卫浴体验。</p>
+                <div class="style-b-features">
+                    <div class="feature-item">
+                        <span class="feature-icon">✓</span>
+                        <span>IPX4级防水设计</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">✓</span>
+                        <span>ABS材质盖板</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">✓</span>
+                        <span>多档温度调节</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">✓</span>
+                        <span>节能环保4.8L</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 方案C：混合模式 -->
+        <h2 class="section-title">方案 C · 混合模式艺术风</h2>
+        <div class="demo-card style-c" id="style-c">
+            <div class="style-c-bg-pattern"></div>
+            <img src="image/product.jpg" alt="智能马桶" class="style-c-image">
+            <div class="style-c-content">
+                <h1 class="style-c-title">SMART<br>LIFE</h1>
+                <p class="style-c-tagline">Intelligent Bathroom Experience</p>
+                <div class="style-c-specs-grid">
+                    <div class="spec-card">
+                        <div class="spec-card-label">Model</div>
+                        <div class="spec-card-value">70097</div>
+                    </div>
+                    <div class="spec-card">
+                        <div class="spec-card-label">Power</div>
+                        <div class="spec-card-value">220V·50Hz</div>
+                    </div>
+                    <div class="spec-card">
+                        <div class="spec-card-label">Size</div>
+                        <div class="spec-card-value">695×540mm</div>
+                    </div>
+                    <div class="spec-card">
+                        <div class="spec-card-label">Weight</div>
+                        <div class="spec-card-value">57kg</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function exportAllImages() {
+            const styles = ['style-a', 'style-b', 'style-c'];
+            const names = ['渐变遮罩版', '毛玻璃版', '混合模式版'];
+
+            styles.forEach((id, index) => {
+                setTimeout(() => {
+                    const element = document.getElementById(id);
+                    html2canvas(element, {
+                        scale: 2,
+                        useCORS: true,
+                        backgroundColor: null,
+                        logging: false
+                    }).then(canvas => {
+                        const link = document.createElement('a');
+                        link.download = `smart-toilet-${names[index]}.png`;
+                        link.href = canvas.toDataURL('image/png', 1.0);
+                        link.click();
+                    });
+                }, index * 800);
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{product.name}} - 产品详情</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        :root {
+            /* Primary Colors - 80% usage */
+            --primary-color: #1a1a1a;
+            --secondary-color: #333;
+            --text-gray: #666;
+            --border-color: #e8e8e8;
+            --bg-light: #fafafa;
+            --bg-section-alt: #f8f9fa;
+
+            /* Accent Colors - 20% usage (点缀色) */
+            --accent-color: {{theme.accent_color}};
+            --accent-light: {{theme.primary_color}};
+            --accent-gradient: linear-gradient(135deg, {{theme.primary_color}} 0%, {{theme.accent_color}} 100%);
+
+            /* Typography */
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+            /* Spacing (4px base unit) */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 16px;
+            --space-lg: 24px;
+            --space-xl: 40px;
+            --space-2xl: 60px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-family);
+            background-color: #f0f2f5;
+            color: var(--primary-color);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: #fff;
+        }
+
+        .section {
+            padding: var(--space-2xl) 70px;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .section:last-child { border-bottom: none; }
+        .section:nth-child(even) { background-color: var(--bg-section-alt); }
+
+        /* Header Section */
+        .header-section {
+            padding: 80px 70px var(--space-2xl);
+            text-align: center;
+            border-bottom: 2px solid var(--border-color);
+            position: relative;
+            background: linear-gradient(180deg, var(--accent-light) 0%, #fff 100%);
+        }
+
+        .header-title {
+            font-size: 52px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            color: var(--primary-color);
+            margin-bottom: var(--space-md);
+            position: relative;
+            display: inline-block;
+        }
+
+        .header-title::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 4px;
+            background: var(--accent-gradient);
+            border-radius: 2px;
+        }
+
+        .header-subtitle {
+            font-size: 18px;
+            color: var(--text-gray);
+            letter-spacing: 2px;
+            font-weight: 400;
+            margin-top: var(--space-xl);
+        }
+
+        .header-price {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--accent-color);
+            margin-top: var(--space-lg);
+        }
+
+        /* Section Title */
+        .section-title-wrapper {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            margin-bottom: var(--space-xl);
+        }
+
+        .section-title-icon {
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+        }
+
+        .section-title {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: var(--primary-color);
+            padding-bottom: var(--space-md);
+            border-bottom: 3px solid var(--accent-color);
+            display: inline-block;
+        }
+
+        /* Hero Content */
+        .hero-content-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-2xl);
+            align-items: center;
+        }
+
+        .hero-text h2 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: var(--space-lg);
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .hero-text h2 svg {
+            width: 32px;
+            height: 32px;
+            color: var(--accent-color);
+        }
+
+        .selling-points { list-style: none; }
+
+        .selling-point {
+            font-size: 18px;
+            color: var(--secondary-color);
+            margin-bottom: 22px;
+            padding-left: 45px;
+            position: relative;
+            line-height: 1.7;
+        }
+
+        .selling-point::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 4px;
+            width: 28px;
+            height: 28px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23{{encodeURIComponent theme.accent_color}}' stroke-width='2.5'%3E%3Cpath d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/%3E%3C/svg%3E");
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        .selling-point strong {
+            color: var(--accent-color);
+            font-weight: 700;
+        }
+
+        .hero-image-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .image-frame-decoration {
+            position: absolute;
+            width: calc(100% + 30px);
+            height: calc(100% + 30px);
+            border: 2px solid var(--accent-color);
+            border-radius: 12px;
+            opacity: 0.15;
+            top: -15px;
+            left: -15px;
+        }
+
+        .hero-image {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            position: relative;
+            z-index: 1;
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Gallery Section */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--space-lg);
+        }
+
+        .gallery-item {
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .gallery-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Specs Grid */
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-lg) 60px;
+        }
+
+        .spec-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-md) 0;
+            border-bottom: 1px solid #f0f0f0;
+            position: relative;
+        }
+
+        .spec-item::before {
+            content: '';
+            position: absolute;
+            left: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 60%;
+            background: var(--accent-gradient);
+            border-radius: 2px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .spec-item:hover::before { opacity: 1; }
+
+        .spec-label {
+            font-size: 17px;
+            color: var(--text-gray);
+            flex-shrink: 0;
+        }
+
+        .spec-value {
+            font-size: 17px;
+            color: var(--primary-color);
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .spec-item.highlight .spec-value {
+            color: var(--accent-color);
+            font-weight: 700;
+        }
+
+        /* Features Grid */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 35px;
+            margin-bottom: 45px;
+        }
+
+        .feature-card {
+            background-color: #fff;
+            padding: 32px 28px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent-gradient);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+            border-color: var(--accent-color);
+        }
+
+        .feature-card:hover::before { opacity: 1; }
+
+        .feature-icon-wrapper {
+            width: 48px;
+            height: 48px;
+            margin-bottom: var(--space-md);
+            background: var(--accent-light);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .feature-icon-wrapper svg {
+            width: 28px;
+            height: 28px;
+            color: var(--accent-color);
+        }
+
+        .feature-emoji {
+            font-size: 32px;
+            margin-bottom: var(--space-md);
+        }
+
+        .feature-title {
+            font-size: 19px;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .feature-desc {
+            font-size: 16px;
+            color: var(--text-gray);
+            line-height: 1.7;
+        }
+
+        /* Dimensions Section */
+        .dimensions-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-2xl);
+        }
+
+        .dimensions-info {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-lg);
+        }
+
+        .dimension-group {
+            padding: var(--space-md);
+            background: var(--bg-light);
+            border-radius: 8px;
+        }
+
+        .dimension-label {
+            font-size: 14px;
+            color: var(--text-gray);
+            margin-bottom: var(--space-xs);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .dimension-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .dimensions-image-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dimensions-image {
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Package Section */
+        .package-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-2xl);
+        }
+
+        .package-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .package-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            padding: var(--space-md);
+            background: var(--bg-light);
+            border-radius: 6px;
+            font-size: 16px;
+            color: var(--secondary-color);
+        }
+
+        .package-item::before {
+            content: '';
+            width: 24px;
+            height: 24px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23{{encodeURIComponent theme.accent_color}}' stroke-width='2.5'%3E%3Cpath d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/%3E%3C/svg%3E");
+            background-size: contain;
+            background-repeat: no-repeat;
+            flex-shrink: 0;
+        }
+
+        /* Export Button */
+        .export-buttons {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .export-btn {
+            padding: 12px 24px;
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .hero-content-wrapper,
+            .dimensions-layout,
+            .package-layout {
+                grid-template-columns: 1fr;
+                gap: var(--space-xl);
+            }
+
+            .gallery-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .hero-image-container,
+            .dimensions-image-container {
+                order: -1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .section { padding: 45px 35px; }
+            .header-section { padding: 55px 35px 45px; }
+            .header-title { font-size: 38px; letter-spacing: 2px; }
+            .section-title { font-size: 26px; }
+
+            .specs-grid,
+            .features-grid,
+            .gallery-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-title { font-size: 32px; }
+            .section { padding: 35px 20px; }
+            .header-section { padding: var(--space-xl) 20px 30px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="export-buttons">
+        <button class="export-btn" onclick="exportImage('jpg')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+            导出 JPG
+        </button>
+    </div>
+
+    <div class="container" id="capture-area">
+        <!-- Header Section -->
+        <div class="header-section">
+            <h1 class="header-title">{{product.name}}</h1>
+            {{#if product.subtitle}}
+            <p class="header-subtitle">{{product.subtitle}}</p>
+            {{/if}}
+            {{#if product.price}}
+            <p class="header-price">{{product.currency}} ${{product.price}}</p>
+            {{/if}}
+        </div>
+
+        <!-- Hero Section -->
+        {{#if highlights}}
+        <div class="section">
+            <div class="section-title-wrapper">
+                <svg class="section-title-icon" viewBox="0 0 24 24" fill="none" stroke="{{theme.accent_color}}" stroke-width="2">
+                    <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                <h2 class="section-title">核心卖点</h2>
+            </div>
+
+            <div class="hero-content-wrapper">
+                <div class="hero-text">
+                    <h2>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        {{product.name}}
+                    </h2>
+                    <ul class="selling-points">
+                        {{#each highlights}}
+                        <li class="selling-point"><strong>{{highlight_key}}</strong> - {{highlight_value}}</li>
+                        {{/each}}
+                    </ul>
+                </div>
+                <div class="hero-image-container">
+                    <div class="image-frame-decoration"></div>
+                    {{#if images}}
+                        {{#each images}}
+                            {{#if (eq image_type 'main')}}
+                    <img src="{{image_url}}" alt="{{alt_text}}" class="hero-image" onerror="this.parentElement.style.display='none'">
+                            {{/if}}
+                        {{/each}}
+                    {{else if product.main_image}}
+                    <img src="{{product.main_image}}" alt="{{product.name}}" class="hero-image">
+                    {{else}}
+                    <div style="width:100%;height:300px;background:linear-gradient(135deg,#f0f0f0,#e0e0e0);display:flex;align-items:center;justify-content:center;color:#999;border-radius:8px;">
+                        {{product.name}}
+                    </div>
+                    {{/if}}
+                </div>
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- Gallery Section -->
+        {{#if images}}
+        <div class="section">
+            <div class="section-title-wrapper">
+                <svg class="section-title-icon" viewBox="0 0 24 24" fill="none" stroke="{{theme.accent_color}}" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                <h2 class="section-title">产品图库</h2>
+            </div>
+            <div class="gallery-grid">
+                {{#each images}}
+                <div class="gallery-item">
+                    <img src="{{image_url}}" alt="{{alt_text}}" onerror="this.parentElement.style.display='none'">
+                </div>
+                {{/each}}
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- Features Section -->
+        {{#if features}}
+        <div class="section">
+            <div class="section-title-wrapper">
+                <svg class="section-title-icon" viewBox="0 0 24 24" fill="none" stroke="{{theme.accent_color}}" stroke-width="2">
+                    <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                </svg>
+                <h2 class="section-title">功能亮点</h2>
+            </div>
+
+            <div class="features-grid">
+                {{#each features}}
+                <div class="feature-card">
+                    {{#if icon_emoji}}
+                    <div class="feature-emoji">{{icon_emoji}}</div>
+                    {{else}}
+                    <div class="feature-icon-wrapper">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                        </svg>
+                    </div>
+                    {{/if}}
+                    <h3 class="feature-title">{{feature_title}}</h3>
+                    <p class="feature-desc">{{description}}</p>
+                </div>
+                {{/each}}
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- Specifications Section -->
+        {{#if specs}}
+        <div class="section">
+            <div class="section-title-wrapper">
+                <svg class="section-title-icon" viewBox="0 0 24 24" fill="none" stroke="{{theme.accent_color}}" stroke-width="2">
+                    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    <path d="M9 14l2 2 4-4"/>
+                </svg>
+                <h2 class="section-title">产品规格</h2>
+            </div>
+
+            <div class="specs-grid">
+                {{#each specs}}
+                <div class="spec-item{{#if @first}} highlight{{/if}}">
+                    <span class="spec-label">{{spec_label}}：</span>
+                    <span class="spec-value">{{spec_value}}{{#if spec_unit}} {{spec_unit}}{{/if}}</span>
+                </div>
+                {{/each}}
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- Dimensions Section -->
+        {{#if dimensions}}
+        <div class="section">
+            <div class="section-title-wrapper">
+                <svg class="section-title-icon" viewBox="0 0 24 24" fill="none" stroke="{{theme.accent_color}}" stroke-width="2">
+                    <path d="M21 21H3V3"/>
+                    <path d="M21 9l-6 6-4-4-6 6"/>
+                </svg>
+                <h2 class="section-title">适配尺寸</h2>
+            </div>
+
+            <div class="dimensions-layout">
+                <div class="dimensions-info">
+                    {{#each dimensions}}
+                    <div class="dimension-group">
+                        <div class="dimension-label">{{dim_label}}</div>
+                        <div class="dimension-value">{{dim_value}}{{#if dim_unit}} {{dim_unit}}{{/if}}</div>
+                    </div>
+                    {{/each}}
+                </div>
+                <div class="dimensions-image-container">
+                    {{#if images}}
+                        {{#each images}}
+                            {{#if (eq image_type 'dimension')}}
+                    <img src="{{image_url}}" alt="尺寸示意图" class="dimensions-image" onerror="this.style.display='none'">
+                            {{/if}}
+                        {{/each}}
+                    {{else if product.dimension_image}}
+                    <img src="{{product.dimension_image}}" alt="尺寸示意图" class="dimensions-image">
+                    {{/if}}
+                </div>
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- Package Section -->
+        {{#if accessories}}
+        <div class="section">
+            <div class="section-title-wrapper">
+                <svg class="section-title-icon" viewBox="0 0 24 24" fill="none" stroke="{{theme.accent_color}}" stroke-width="2">
+                    <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                    <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+                <h2 class="section-title">包装清单</h2>
+            </div>
+
+            <div class="package-layout">
+                <div class="package-list">
+                    {{#each accessories}}
+                    <div class="package-item">{{accessory_name}}{{#if (ne quantity 1)}} × {{quantity}}{{/if}}</div>
+                    {{/each}}
+                </div>
+            </div>
+        </div>
+        {{/if}}
+    </div>
+
+    <script>
+        async function waitForImages(element) {
+            const images = element.querySelectorAll('img');
+            const promises = Array.from(images).map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise((resolve) => {
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                    setTimeout(resolve, 3000);
+                });
+            });
+            return Promise.all(promises);
+        }
+
+        async function exportImage(format) {
+            const element = document.getElementById('capture-area');
+            const btn = document.querySelector('.export-btn');
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> 导出中...';
+            btn.disabled = true;
+
+            try {
+                await waitForImages(element);
+                const canvas = await html2canvas(element, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff'
+                });
+
+                const link = document.createElement('a');
+                const timestamp = new Date().toISOString().slice(0, 10);
+                const productName = '{{product.name}}'.replace(/\s+/g, '-').toLowerCase();
+                link.download = productName + '-' + timestamp + '.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> 成功';
+                setTimeout(() => {
+                    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> 导出 JPG';
+                    btn.disabled = false;
+                }, 2000);
+            } catch (error) {
+                console.error('导出失败:', error);
+                btn.innerHTML = '导出失败';
+                setTimeout(() => {
+                    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> 导出 JPG';
+                    btn.disabled = false;
+                }, 2000);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<div class="data-section" id="sectionHighlights">
+    <div class="data-section-header" onclick="app.toggleSection('Highlights')">
+        <span>📍 核心卖点</span>
+        <span class="toggle-icon">▼</span>
+    </div>
+    <div class="data-section-body">
+        <div id="listHighlights" class="data-list"></div>
+        <div class="data-add-form" id="formHighlights">
+            <input type="text" id="addHighlightKey" placeholder="属性名称">
+            <input type="text" id="addHighlightValue" placeholder="属性值">
+            <button type="button" class="btn btn-sm btn-success" onclick="app.addDataItem('highlights')">添加</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="app.hideAddForm('Highlights')">取消</button>
+        </div>
+        <button type="button" class="btn btn-sm btn-primary" style="width:auto;" onclick="app.showAddForm('Highlights')">+ 添加</button>
+    </div>
+</div>
+
+<div class="data-section" id="sectionSpecs">
+    <div class="data-section-header" onclick="app.toggleSection('Specs')">
+        <span>📋 产品规格</span>
+        <span class="toggle-icon">▼</span>
+    </div>
+    <div class="data-section-body">
+        <div id="listSpecs" class="data-list"></div>
+        <div class="data-add-form" id="formSpecs">
+            <input type="text" id="addSpecLabel" placeholder="规格名称">
+            <input type="text" id="addSpecValue" placeholder="规格值">
+            <input type="text" id="addSpecUnit" placeholder="单位" style="width:60px;">
+            <button type="button" class="btn btn-sm btn-success" onclick="app.addDataItem('specs')">添加</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="app.hideAddForm('Specs')">取消</button>
+        </div>
+        <button type="button" class="btn btn-sm btn-primary" style="width:auto;" onclick="app.showAddForm('Specs')">+ 添加</button>
+    </div>
+</div>
+
+<div class="data-section" id="sectionAccessories">
+    <div class="data-section-header" onclick="app.toggleSection('Accessories')">
+        <span>📦 包装清单</span>
+        <span class="toggle-icon">▼</span>
+    </div>
+    <div class="data-section-body">
+        <div id="listAccessories" class="data-list"></div>
+        <div class="data-add-form" id="formAccessories">
+            <input type="text" id="addAccessoryName" placeholder="配件名称">
+            <input type="number" id="addAccessoryQty" placeholder="数量" value="1" style="width:60px;">
+            <button type="button" class="btn btn-sm btn-success" onclick="app.addDataItem('accessories')">添加</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="app.hideAddForm('Accessories')">取消</button>
+        </div>
+        <button type="button" class="btn btn-sm btn-primary" style="width:auto;" onclick="app.showAddForm('Accessories')">+ 添加</button>
+    </div>
+</div>
+
+<div class="data-section" id="sectionFeatures">
+    <div class="data-section-header" onclick="app.toggleSection('Features')">
+        <span>⭐ 功能亮点</span>
+        <span class="toggle-icon">▼</span>
+    </div>
+    <div class="data-section-body">
+        <div id="listFeatures" class="data-list"></div>
+        <div class="data-add-form" id="formFeatures">
+            <input type="text" id="addFeatureEmoji" placeholder="图标" style="width:50px;">
+            <input type="text" id="addFeatureTitle" placeholder="功能标题">
+            <input type="text" id="addFeatureDesc" placeholder="描述">
+            <button type="button" class="btn btn-sm btn-success" onclick="app.addDataItem('features')">添加</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="app.hideAddForm('Features')">取消</button>
+        </div>
+        <button type="button" class="btn btn-sm btn-primary" style="width:auto;" onclick="app.showAddForm('Features')">+ 添加</button>
+    </div>
+</div>
+
+<div class="data-section" id="sectionDimensions">
+    <div class="data-section-header" onclick="app.toggleSection('Dimensions')">
+        <span>📐 适配尺寸</span>
+        <span class="toggle-icon">▼</span>
+    </div>
+    <div class="data-section-body">
+        <div id="listDimensions" class="data-list"></div>
+        <div class="data-add-form" id="formDimensions">
+            <input type="text" id="addDimLabel" placeholder="尺寸名称">
+            <input type="text" id="addDimValue" placeholder="尺寸值">
+            <input type="text" id="addDimUnit" placeholder="单位" style="width:60px;">
+            <button type="button" class="btn btn-sm btn-success" onclick="app.addDataItem('dimensions')">添加</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="app.hideAddForm('Dimensions')">取消</button>
+        </div>
+        <button type="button" class="btn btn-sm btn-primary" style="width:auto;" onclick="app.showAddForm('Dimensions')">+ 添加</button>
+    </div>
+</div>

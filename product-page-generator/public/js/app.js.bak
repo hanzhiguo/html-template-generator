@@ -1,0 +1,3082 @@
+/**
+ * 应用入口文件
+ * 参考 Novel Board AI 的架构设计
+ */
+
+import { storage } from './services/storage.js';
+import { showToast } from './services/utils.js';
+import { authAPI, productsAPI, agentAPI, settingsAPI, iconsAPI } from './api/index.js';
+import { appState } from './stores/appState.js';
+
+class App {
+    constructor() {
+        console.log('App constructor called');
+        this.token = storage.getToken();
+        console.log('Token from storage:', this.token ? 'exists' : 'missing');
+        this.currentTemplate = 'detail';
+        this.currentPage = 0;
+        this.totalPages = 1;
+        this.currentProduct = null;
+        this.previewLang = localStorage.getItem('preview-lang') || 'zh';
+        this.originalProduct = null;
+        this.translationCache = new Map();
+        this._loadTranslationCache();
+        this.init();
+    }
+
+    i18n = {
+        zh: {
+            'features': '功能亮点',
+            'specifications': '产品规格',
+            'dimensions': '适配尺寸',
+            'package-includes': '包装清单',
+            'key-highlights': '核心卖点',
+            'preview-title': '产品详情预览'
+        },
+        en: {
+            'features': 'FEATURES',
+            'specifications': 'SPECIFICATIONS',
+            'dimensions': 'DIMENSIONS',
+            'package-includes': 'PACKAGE INCLUDES',
+            'key-highlights': 'KEY HIGHLIGHTS',
+            'preview-title': 'Product Preview'
+        },
+        ja: {
+            'features': '機能',
+            'specifications': '仕様',
+            'dimensions': '寸法',
+            'package-includes': 'パッケージ内容',
+            'key-highlights': '主な特徴',
+            'preview-title': '製品プレビュー'
+        },
+        de: {
+            'features': 'FUNKTIONEN',
+            'specifications': 'SPEZIFIKATIONEN',
+            'dimensions': 'ABMESSUNGEN',
+            'package-includes': 'LIEFERUMFANG',
+            'key-highlights': 'HAUPTEIGENSCHAFTEN',
+            'preview-title': 'Produktvorschau'
+        },
+        fr: {
+            'features': 'CARACTÉRISTIQUES',
+            'specifications': 'SPÉCIFICATIONS',
+            'dimensions': 'DIMENSIONS',
+            'package-includes': 'CONTENU DU PAQUET',
+            'key-highlights': 'POINTS FORTS',
+            'preview-title': 'Aperçu du produit'
+        },
+        es: {
+            'features': 'CARACTERÍSTICAS',
+            'specifications': 'ESPECIFICACIONES',
+            'dimensions': 'DIMENSIONES',
+            'package-includes': 'CONTENIDO DEL PAQUETE',
+            'key-highlights': 'CARACTERÍSTICAS PRINCIPALES',
+            'preview-title': 'Vista previa del producto'
+        },
+        ko: {
+            'features': '기능',
+            'specifications': '사양',
+            'dimensions': '치수',
+            'package-includes': '패키지 포함',
+            'key-highlights': '주요 특징',
+            'preview-title': '제품 미리보기'
+        },
+        ru: {
+            'features': 'ОСОБЕННОСТИ',
+            'specifications': 'ТЕХНИЧЕСКИЕ ХАРАКТЕРИСТИКИ',
+            'dimensions': 'РАЗМЕРЫ',
+            'package-includes': 'КОМПЛЕКТАЦИЯ',
+            'key-highlights': 'КЛЮЧЕВЫЕ ОСОБЕННОСТИ',
+            'preview-title': 'Предпросмотр продукта'
+        }
+    };
+
+    t(key) {
+        return this.i18n[this.previewLang]?.[key] || this.i18n['en'][key] || key;
+    }
+
+    async switchPreviewLanguage(lang) {
+        if (lang === this.previewLang) return;
+        
+        const previousLang = this.previewLang;
+        this.previewLang = lang;
+        localStorage.setItem('preview-lang', lang);
+        
+        if (!this.currentProduct) return;
+
+        if (lang === 'zh') {
+            this.currentProduct = this.originalProduct;
+            this.renderCurrentProduct();
+            return;
+        }
+
+        const cacheKey = `${this.currentProduct.id}_${lang}`;
+        
+        // 先检查内存缓存
+        if (this.translationCache.has(cacheKey)) {
+            this.currentProduct = this.translationCache.get(cacheKey);
+            this.renderCurrentProduct();
+            return;
+        }
+
+        // 再检查 localStorage 持久缓存
+        const cached = this._getTranslationFromStorage(cacheKey);
+        if (cached) {
+            this.translationCache.set(cacheKey, cached);
+            this.currentProduct = cached;
+            this.renderCurrentProduct();
+            return;
+        }
+
+        this.showTranslationLoading(true);
+
+        try {
+            const contentToTranslate = this.extractTranslatableContent(this.originalProduct);
+            
+            const response = await fetch('/api/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content: contentToTranslate,
+                    targetLang: lang,
+                    sourceLang: 'zh'
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.translated) {
+                const translatedProduct = this.applyTranslation(this.originalProduct, data.translated);
+                this.translationCache.set(cacheKey, translatedProduct);
+                this._saveTranslationToStorage(cacheKey, translatedProduct);
+                this.currentProduct = translatedProduct;
+                this.renderCurrentProduct();
+            } else {
+                throw new Error(data.error || '翻译失败');
+            }
+        } catch (err) {
+            console.error('翻译失败:', err);
+            showToast('翻译失败: ' + err.message, 'error');
+            this.previewLang = previousLang;
+            document.getElementById('previewLang').value = previousLang;
+        } finally {
+            this.showTranslationLoading(false);
+        }
+    }
+
+    extractTranslatableContent(product) {
+        return {
+            name: product.name || '',
+            subtitle: product.subtitle || '',
+            description: product.description || '',
+            highlights: (product.highlights || []).map(h => ({
+                key: h.highlight_key || '',
+                value: h.highlight_value || ''
+            })),
+            specs: (product.specs || []).map(s => ({
+                label: s.spec_label || '',
+                value: s.spec_value || ''
+            })),
+            features: (product.features || []).map(f => ({
+                title: f.feature_title || '',
+                description: f.description || ''
+            })),
+            dimensions: (product.dimensions || []).map(d => ({
+                label: d.dim_label || '',
+                value: d.dim_value || ''
+            })),
+            accessories: (product.accessories || []).map(a => ({
+                name: a.accessory_name || ''
+            }))
+        };
+    }
+
+    applyTranslation(original, translated) {
+        const product = JSON.parse(JSON.stringify(original));
+        
+        product.name = translated.name || product.name;
+        product.subtitle = translated.subtitle || product.subtitle;
+        product.description = translated.description || product.description;
+        
+        if (translated.highlights && product.highlights) {
+            product.highlights = product.highlights.map((h, i) => ({
+                ...h,
+                highlight_key: translated.highlights[i]?.key || h.highlight_key,
+                highlight_value: translated.highlights[i]?.value || h.highlight_value
+            }));
+        }
+        
+        if (translated.specs && product.specs) {
+            product.specs = product.specs.map((s, i) => ({
+                ...s,
+                spec_label: translated.specs[i]?.label || s.spec_label,
+                spec_value: translated.specs[i]?.value || s.spec_value
+            }));
+        }
+        
+        if (translated.features && product.features) {
+            product.features = product.features.map((f, i) => ({
+                ...f,
+                feature_title: translated.features[i]?.title || f.feature_title,
+                description: translated.features[i]?.description || f.description
+            }));
+        }
+        
+        if (translated.dimensions && product.dimensions) {
+            product.dimensions = product.dimensions.map((d, i) => ({
+                ...d,
+                dim_label: translated.dimensions[i]?.label || d.dim_label,
+                dim_value: translated.dimensions[i]?.value || d.dim_value
+            }));
+        }
+        
+        if (translated.accessories && product.accessories) {
+            product.accessories = product.accessories.map((a, i) => ({
+                ...a,
+                accessory_name: translated.accessories[i]?.name || a.accessory_name
+            }));
+        }
+        
+        return product;
+    }
+
+    renderCurrentProduct() {
+        const content = document.getElementById('previewContent');
+        content.innerHTML = this.renderProductPreview(this.currentProduct, this.currentTemplate, this.currentPage);
+        this.loadProductImagesForPreview(this.currentProduct.id);
+    }
+
+    showTranslationLoading(show) {
+        const loading = document.getElementById('translationLoading');
+        if (loading) {
+            loading.style.display = show ? 'flex' : 'none';
+        }
+    }
+
+    // ========== 翻译缓存持久化（localStorage） ==========
+
+    _loadTranslationCache() {
+        try {
+            const keys = Object.keys(localStorage);
+            const cacheKeys = keys.filter(k => k.startsWith('trans_cache_'));
+            for (const key of cacheKeys) {
+                try {
+                    const data = JSON.parse(localStorage.getItem(key));
+                    if (data && data.product) {
+                        const mapKey = key.replace('trans_cache_', '');
+                        this.translationCache.set(mapKey, data.product);
+                    }
+                } catch (e) {
+                    // 忽略损坏的缓存
+                }
+            }
+            if (cacheKeys.length > 0) {
+                console.log(`已加载 ${cacheKeys.length} 条翻译缓存`);
+            }
+        } catch (e) {
+            console.warn('加载翻译缓存失败:', e);
+        }
+    }
+
+    _getTranslationFromStorage(cacheKey) {
+        try {
+            const data = JSON.parse(localStorage.getItem(`trans_cache_${cacheKey}`));
+            return data?.product || null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    _saveTranslationToStorage(cacheKey, product) {
+        try {
+            localStorage.setItem(`trans_cache_${cacheKey}`, JSON.stringify({
+                product,
+                timestamp: Date.now()
+            }));
+        } catch (e) {
+            console.warn('保存翻译缓存失败:', e);
+        }
+    }
+
+    init() {
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (this.token) {
+                const valid = await this.verifyToken();
+                if (valid) {
+                    this.showMainInterface();
+                    this.loadProducts();
+                } else {
+                    this.token = null;
+                    storage.removeToken();
+                }
+            }
+            
+            document.getElementById('loginForm')?.addEventListener('submit', (e) => this.handleLogin(e));
+            document.getElementById('productForm')?.addEventListener('submit', (e) => this.handleProductSubmit(e));
+        });
+    }
+
+    async handleLogin(e) {
+        e.preventDefault();
+        const username = document.getElementById('loginUsername').value;
+        const password = document.getElementById('loginPassword').value;
+        console.log('handleLogin called, username:', username);
+
+        try {
+            const data = await authAPI.login(username, password);
+            console.log('handleLogin received data:', data);
+
+            if (data.token) {
+                console.log('Token is valid, setting up...');
+                this.token = data.token;
+                storage.setToken(data.token);
+                storage.setUsername(data.user.username);
+                appState.setUser(data.user);
+                appState.setToken(data.token);
+
+                console.log('Token saved to localStorage:', storage.getToken() ? 'yes' : 'no');
+                console.log('Token in app instance:', this.token ? 'yes' : 'no');
+
+                this.showMainInterface();
+                this.loadProducts();
+                showToast('登录成功');
+            } else {
+                showToast(data.error || '登录失败', 'error');
+            }
+        } catch (err) {
+            console.error('Login error:', err);
+            showToast('网络错误', 'error');
+        }
+    }
+
+    logout() {
+        this.token = null;
+        storage.removeToken();
+        storage.removeUsername();
+        appState.logout();
+        
+        document.getElementById('navbar').classList.add('hidden');
+        document.getElementById('loginContainer').classList.remove('hidden');
+        document.getElementById('mainContent').classList.add('hidden');
+    }
+
+    async verifyToken() {
+        try {
+            const data = await authAPI.verify(this.token);
+            return !!(data && data.user);
+        } catch (err) {
+            return false;
+        }
+    }
+
+    showMainInterface() {
+        document.getElementById('navbar').classList.remove('hidden');
+        document.getElementById('loginContainer').classList.add('hidden');
+        document.getElementById('mainContent').classList.remove('hidden');
+        document.getElementById('username').textContent = storage.getUsername();
+    }
+
+    async loadProducts() {
+        try {
+            console.log('loadProducts called, token:', this.token ? 'exists' : 'missing');
+            const data = await productsAPI.getAll(this.token);
+            console.log('API response:', data);
+            const products = data.products || [];
+            console.log('Products count:', products.length);
+            appState.setProducts(products);
+            this.renderProducts(products);
+        } catch (err) {
+            console.error('loadProducts error:', err);
+            showToast('加载失败: ' + err.message, 'error');
+        }
+    }
+
+    renderProducts(products) {
+        const tbody = document.getElementById('productsBody');
+        if (!tbody) return;
+
+        if (products.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">暂无产品</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = products.map(p => `
+            <tr>
+                <td>${p.id}</td>
+                <td>${p.sku || '-'}</td>
+                <td>${p.name}</td>
+                <td>${p.price ? this.formatPrice(p.price, p.currency) : '-'}</td>
+                <td><span class="status-badge status-${p.status}">${this.getStatusText(p.status)}</span></td>
+                <td class="actions">
+                    <button onclick="app.viewProduct('${p.id}')" class="view">查看</button>
+                    <button onclick="app.editProduct('${p.id}')">编辑</button>
+                    <button onclick="app.deleteProduct('${p.id}')">删除</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    formatPrice(price, currency = 'USD') {
+        const symbols = { USD: '$', CNY: '¥', EUR: '€' };
+        return `${symbols[currency] || ''}${parseFloat(price).toFixed(2)}`;
+    }
+
+    getStatusText(status) {
+        const texts = {
+            draft: '草稿',
+            active: '已发布',
+            archived: '已归档'
+        };
+        return texts[status] || status;
+    }
+
+    switchTab(tab) {
+        const tabButtons = document.querySelectorAll('.tab');
+        // 标签顺序: 产品列表(0), 从图片添加产品(1), 附件管理(2), AI助手(3), 设置(4)
+        tabButtons.forEach((t, i) => {
+            const tabMap = ['products', 'imageToProduct', 'images', 'agent', 'settings'];
+            t.classList.toggle('active', tabMap[i] === tab);
+        });
+
+        document.getElementById('productsTab').classList.toggle('hidden', tab !== 'products');
+        document.getElementById('imageToProductTab').classList.toggle('hidden', tab !== 'imageToProduct');
+        document.getElementById('imagesTab').classList.toggle('hidden', tab !== 'images');
+        document.getElementById('agentTab').classList.toggle('hidden', tab !== 'agent');
+        document.getElementById('settingsTab').classList.toggle('hidden', tab !== 'settings');
+
+        appState.setCurrentTab(tab);
+
+        if (tab === 'agent') {
+            this.loadAgentTools();
+            this.loadKBStats();
+            this.loadConversations();
+        }
+
+        if (tab === 'settings') {
+            this.loadSettings();
+        }
+
+        if (tab === 'images') {
+            this.loadImagesProducts();
+        }
+    }
+
+    async viewProduct(id) {
+        try {
+            console.log('viewProduct called with id:', id, 'type:', typeof id);
+            const product = await productsAPI.getById(id, this.token);
+            console.log('API response:', product);
+            console.log('API response keys:', Object.keys(product));
+            console.log('Has product key?', 'product' in product);
+            const p = product.product || product;
+            console.log('Product data:', p);
+            console.log('Product highlights:', p.highlights);
+            console.log('Product specs:', p.specs);
+            console.log('Product features:', p.features);
+            appState.setCurrentProduct(p);
+
+            // 显示预览模态框
+            this.openPreview(p);
+        } catch (err) {
+            console.error('加载产品详情失败:', err);
+            showToast('加载产品详情失败: ' + err.message, 'error');
+        }
+    }
+
+    openPreview(product) {
+        this.originalProduct = JSON.parse(JSON.stringify(product));
+        this.currentProduct = product;
+        this.currentTemplate = 'detail';
+        this.currentPage = 0;
+        this.totalPages = 1;
+        this.previewLang = 'zh';
+        this.translationCache.clear();
+
+        const modal = document.getElementById('previewModal');
+        const content = document.getElementById('previewContent');
+        const title = document.getElementById('previewTitle');
+
+        title.textContent = product.name || this.t('preview-title');
+
+        // 重置模板选择器
+        const templateSelect = document.getElementById('templateType');
+        if (templateSelect) templateSelect.value = 'detail';
+
+        // 设置语言选择器
+        const langSelect = document.getElementById('previewLang');
+        if (langSelect) langSelect.value = 'zh';
+
+        // 隐藏分页按钮
+        document.getElementById('prevPageBtn').style.display = 'none';
+        document.getElementById('nextPageBtn').style.display = 'none';
+        document.getElementById('previewPageIndicator').textContent = '第 1/1 页';
+
+        // 渲染产品页面模板
+        content.innerHTML = this.renderProductPreview(product, 'detail', 0);
+        modal.classList.add('active');
+
+        // 加载产品图片
+        this.loadProductImagesForPreview(product.id);
+    }
+
+    switchTemplate(templateType) {
+        this.currentTemplate = templateType;
+        if (!this.currentProduct) return;
+
+        const content = document.getElementById('previewContent');
+
+        if (templateType === 'detail') {
+            // 详情页模式：单页
+            this.totalPages = 1;
+            this.currentPage = 0;
+            content.innerHTML = this.renderProductPreview(this.currentProduct, 'detail', 0);
+            document.getElementById('prevPageBtn').style.display = 'none';
+            document.getElementById('nextPageBtn').style.display = 'none';
+            document.getElementById('previewPageIndicator').textContent = '第 1/1 页';
+        } else {
+            // 手册模式：9:16 比例分页
+            const pages = this.getManualPages(this.currentProduct);
+            this.totalPages = pages.length;
+            this.currentPage = 0;
+            this.renderManualPage(0);
+        }
+
+        // 重新加载图片
+        this.loadProductImagesForPreview(this.currentProduct.id);
+    }
+
+    getManualPages(product) {
+        const p = product;
+        const highlights = p.highlights || [];
+        const specs = p.specs || [];
+        const features = p.features || [];
+        const dimensions = p.dimensions || [];
+        const accessories = p.accessories || [];
+
+        const pages = [];
+
+        // 第1页：封面
+        pages.push({
+            type: 'cover',
+            title: p.name || '产品名称',
+            subtitle: p.subtitle || '',
+            price: p.price ? this.formatPrice(p.price, p.currency) : '',
+            image: true
+        });
+
+        // 第2页：核心卖点
+        if (highlights.length > 0) {
+            pages.push({
+                type: 'highlights',
+                title: '核心卖点',
+                data: highlights.slice(0, 6),
+                icon: true
+            });
+        }
+
+        // 第3页：功能亮点
+        if (features.length > 0) {
+            pages.push({
+                type: 'features',
+                title: '功能亮点',
+                data: features.slice(0, 4),
+                icon: true
+            });
+        }
+
+        // 第4页：产品规格
+        if (specs.length > 0) {
+            pages.push({
+                type: 'specs',
+                title: '产品规格',
+                data: specs.slice(0, 6)
+            });
+        }
+
+        // 第5页：包装清单
+        if (accessories.length > 0) {
+            pages.push({
+                type: 'accessories',
+                title: '包装清单',
+                data: accessories.slice(0, 6)
+            });
+        }
+
+        // 第6页：尺寸信息
+        if (dimensions.length > 0) {
+            pages.push({
+                type: 'dimensions',
+                title: '尺寸规格',
+                data: dimensions.slice(0, 4)
+            });
+        }
+
+        // 最后一页：产品描述
+        if (p.description) {
+            pages.push({
+                type: 'description',
+                title: '产品介绍',
+                content: p.description
+            });
+        }
+
+        return pages;
+    }
+
+    renderManualPage(pageIndex) {
+        const pages = this.getManualPages(this.currentProduct);
+        if (pageIndex < 0 || pageIndex >= pages.length) return;
+
+        const page = pages[pageIndex];
+        const content = document.getElementById('previewContent');
+
+        content.innerHTML = this.renderManualPageHTML(page, pageIndex + 1, pages.length);
+
+        // 更新页码显示
+        document.getElementById('previewPageIndicator').textContent = `第 ${pageIndex + 1}/${pages.length} 页`;
+        document.getElementById('prevPageBtn').style.display = pageIndex > 0 ? 'inline-block' : 'none';
+        document.getElementById('nextPageBtn').style.display = pageIndex < pages.length - 1 ? 'inline-block' : 'none';
+    }
+
+    renderManualPageHTML(page, pageNum, totalPages) {
+        const bgColor = '#ffffff';
+        const accentColor = '#1e40af';
+        const textColor = '#333333';
+
+        let pageContent = '';
+
+        if (page.type === 'cover') {
+            pageContent = `
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;padding:40px;">
+                    <div style="width:200px;height:200px;background:#f0f4f8;border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:40px;">
+                        <span style="font-size:80px;">📦</span>
+                    </div>
+                    <h1 style="font-size:42px;font-weight:700;color:${accentColor};margin:0 0 16px 0;">${this.escapeHtml(page.title)}</h1>
+                    ${page.subtitle ? `<p style="font-size:22px;color:#666;margin:0 0 24px 0;">${this.escapeHtml(page.subtitle)}</p>` : ''}
+                    ${page.price ? `<p style="font-size:28px;font-weight:600;color:#059669;margin:0;">${page.price}</p>` : ''}
+                </div>
+            `;
+        } else if (page.type === 'highlights') {
+            const cols = page.data.length <= 4 ? 2 : 3;
+            pageContent = `
+                <div style="padding:40px 30px;">
+                    <h2 style="font-size:32px;font-weight:700;color:${accentColor};text-align:center;margin:0 0 40px 0;">${page.title}</h2>
+                    <div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:24px;">
+                        ${page.data.map((h, i) => `
+                            <div style="background:#f8fafc;padding:24px;border-radius:12px;text-align:center;">
+                                <div style="font-size:36px;margin-bottom:12px;">${this.getHighlightIcon(i)}</div>
+                                <div style="font-size:14px;color:#666;">${this.escapeHtml(h.highlight_key || '')}</div>
+                                <div style="font-size:20px;font-weight:600;color:${accentColor};">${this.escapeHtml(h.highlight_value || '')}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        } else if (page.type === 'features') {
+            pageContent = `
+                <div style="padding:40px 30px;">
+                    <h2 style="font-size:32px;font-weight:700;color:${accentColor};text-align:center;margin:0 0 40px 0;">${page.title}</h2>
+                    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:24px;">
+                        ${page.data.map(f => `
+                            <div style="background:linear-gradient(135deg,${accentColor},#3b82f6);color:#fff;padding:28px;border-radius:12px;">
+                                <div style="font-size:32px;margin-bottom:12px;">${f.icon_emoji || '⭐'}</div>
+                                <h3 style="font-size:18px;font-weight:600;margin:0 0 8px 0;">${this.escapeHtml(f.feature_title || '')}</h3>
+                                <p style="font-size:14px;opacity:0.9;margin:0;line-height:1.5;">${this.escapeHtml(f.description || '')}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        } else if (page.type === 'specs') {
+            pageContent = `
+                <div style="padding:40px 30px;">
+                    <h2 style="font-size:32px;font-weight:700;color:${accentColor};text-align:center;margin:0 0 40px 0;">${page.title}</h2>
+                    <div style="background:#f8fafc;border-radius:12px;overflow:hidden;">
+                        ${page.data.map((s, i) => `
+                            <div style="display:flex;justify-content:space-between;padding:16px 20px;${i < page.data.length - 1 ? 'border-bottom:1px solid #e5e7eb;' : ''}">
+                                <span style="font-size:16px;color:#666;">${this.escapeHtml(s.spec_label || '')}</span>
+                                <span style="font-size:16px;font-weight:600;color:${textColor};">${this.escapeHtml(s.spec_value || '')} ${this.escapeHtml(s.spec_unit || '')}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        } else if (page.type === 'accessories') {
+            pageContent = `
+                <div style="padding:40px 30px;">
+                    <h2 style="font-size:32px;font-weight:700;color:${accentColor};text-align:center;margin:0 0 40px 0;">${page.title}</h2>
+                    <div style="display:flex;flex-direction:column;gap:16px;">
+                        ${page.data.map(a => `
+                            <div style="display:flex;align-items:center;gap:16px;background:#fff;border:1px solid #e5e7eb;padding:20px;border-radius:12px;">
+                                <span style="font-size:40px;">📦</span>
+                                <div style="flex:1;">
+                                    <span style="font-size:18px;font-weight:500;color:${textColor};">${this.escapeHtml(a.accessory_name || '')}</span>
+                                </div>
+                                ${a.quantity ? `<span style="font-size:16px;color:#888;background:#f3f4f6;padding:4px 12px;border-radius:20px;">×${a.quantity}</span>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        } else if (page.type === 'dimensions') {
+            const col = page.data.length <= 2 ? 1 : 2;
+            pageContent = `
+                <div style="padding:40px 30px;">
+                    <h2 style="font-size:32px;font-weight:700;color:${accentColor};text-align:center;margin:0 0 40px 0;">${page.title}</h2>
+                    <div style="display:grid;grid-template-columns:repeat(${col},1fr);gap:20px;">
+                        ${page.data.map(d => `
+                            <div style="background:#f8fafc;padding:24px;border-radius:12px;text-align:center;">
+                                <div style="font-size:14px;color:#666;margin-bottom:8px;">${this.escapeHtml(d.dim_label || '')}</div>
+                                <div style="font-size:28px;font-weight:700;color:${accentColor};">${this.escapeHtml(d.dim_value || '')}</div>
+                                <div style="font-size:14px;color:#888;">${this.escapeHtml(d.dim_unit || '')}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        } else if (page.type === 'description') {
+            pageContent = `
+                <div style="padding:40px 30px;height:calc(100% - 100px);overflow:hidden;">
+                    <h2 style="font-size:32px;font-weight:700;color:${accentColor};text-align:center;margin:0 0 30px 0;">${page.title}</h2>
+                    <p style="font-size:18px;line-height:1.8;color:${textColor};text-align:justify;">${this.escapeHtml(page.content || '')}</p>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="manual-page-wrapper">
+            <div class="manual-page" style="
+                width: 100%;
+                max-width: 540px;
+                margin: 0 auto;
+                aspect-ratio: 9 / 16;
+                background: ${bgColor};
+                display: flex;
+                flex-direction: column;
+                position: relative;
+            ">
+                <div class="manual-page-content" style="flex:1;overflow:hidden;">
+                    ${pageContent}
+                </div>
+                <div style="
+                    position: absolute;
+                    bottom: 20px;
+                    left: 0;
+                    right: 0;
+                    text-align: center;
+                    font-size: 14px;
+                    color: #999;
+                    padding: 0 30px;
+                ">
+                    <span style="color: ${accentColor}; font-weight: 600;">${pageNum} / ${totalPages}</span>
+                </div>
+            </div>
+            <style>
+                .manual-page { box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+            </style>
+            </div>
+        `;
+    }
+
+    prevPage() {
+        if (this.currentPage > 0) {
+            this.currentPage--;
+            this.renderManualPage(this.currentPage);
+        }
+    }
+
+    nextPage() {
+        if (this.currentPage < this.totalPages - 1) {
+            this.currentPage++;
+            this.renderManualPage(this.currentPage);
+        }
+    }
+
+    renderProductPreview(product, templateType = 'detail', pageNum = 0) {
+        const p = product;
+        const highlights = p.highlights || [];
+        const specs = p.specs || [];
+        const features = p.features || [];
+        const dimensions = p.dimensions || [];
+        const accessories = p.accessories || [];
+
+        const quickFeatures = highlights.slice(0, 4);
+        const featureCards = features.slice(0, 4);
+        const allSpecs = specs;
+        const allDimensions = dimensions;
+        const allAccessories = accessories;
+        const priceDisplay = p.price ? this.formatPrice(p.price, p.currency) : '';
+
+        return `
+        <div class="preview-page">
+            <!-- Hero Section -->
+            <div class="preview-hero">
+                <div class="preview-hero-content">
+                    <h1 class="preview-title">${this.escapeHtml(p.name || '产品名称')}</h1>
+                    <p class="preview-subtitle">${this.escapeHtml(p.subtitle || '')}</p>
+                    ${priceDisplay ? `<p class="preview-price">${priceDisplay}</p>` : ''}
+                    <p class="preview-description">${this.escapeHtml(p.description || '')}</p>
+
+                    <div class="preview-features-grid">
+                        ${quickFeatures.map((h, i) => `
+                            <div class="preview-feature-item">
+                                <div class="preview-feature-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="2">
+                                        ${this.getFeatureIcon(i)}
+                                    </svg>
+                                </div>
+                                <div class="preview-feature-text">${this.escapeHtml(h.highlight_key || '')}<br><strong>${this.escapeHtml(h.highlight_value || '')}</strong></div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="preview-hero-image">
+                    <img id="previewMainImage" src="/placeholder.png" alt="${this.escapeHtml(p.name)}" onerror="this.style.display='none'">
+                    <div id="previewImagePlaceholder" class="preview-image-placeholder">
+                        <span>📷</span>
+                        <span>产品主图</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 功能亮点 Section -->
+            ${featureCards.length > 0 ? `
+            <h2 class="preview-section-title">${this.t('features')}</h2>
+            <div class="preview-features-section">
+                <div class="preview-features-cards">
+                    ${featureCards.map(f => `
+                        <div class="preview-feature-card">
+                            <div class="preview-feature-card-image">${f.icon_emoji || '⭐'}</div>
+                            <div class="preview-feature-card-content">
+                                <h4 class="preview-feature-card-title">${this.escapeHtml(f.feature_title || f.feature_name || '功能')}</h4>
+                                <p class="preview-feature-card-description">${this.escapeHtml(f.description || '')}</p>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+
+            <!-- 产品规格 Section -->
+            ${allSpecs.length > 0 ? `
+            <h2 class="preview-section-title">${this.t('specifications')}</h2>
+            <div class="preview-specs-section">
+                <div class="preview-specs-grid">
+                    ${allSpecs.map(s => `
+                        <div class="preview-spec-item">
+                            <span class="preview-spec-label">${this.escapeHtml(s.spec_label || s.spec_name || '规格')}</span>
+                            <span class="preview-spec-value">${this.escapeHtml(s.spec_value || '')} ${this.escapeHtml(s.spec_unit || '')}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+
+            <!-- 适配尺寸 Section -->
+            ${allDimensions.length > 0 ? `
+            <h2 class="preview-section-title">${this.t('dimensions')}</h2>
+            <div class="preview-dimensions-section">
+                <div class="preview-dimensions-grid">
+                    ${allDimensions.map(d => `
+                        <div class="preview-dim-item">
+                            <span class="preview-dim-label">${this.escapeHtml(d.dim_label || d.dim_name || '')}</span>
+                            <span class="preview-dim-value">${this.escapeHtml(d.dim_value || '')} ${this.escapeHtml(d.dim_unit || '')}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+
+            <!-- 包装清单 Section -->
+            ${allAccessories.length > 0 ? `
+            <h2 class="preview-section-title">${this.t('package-includes')}</h2>
+            <div class="preview-accessories-section">
+                <div class="preview-accessories-list">
+                    ${allAccessories.map(a => `
+                        <div class="preview-accessory-item">
+                            <span class="preview-accessory-icon">📦</span>
+                            <span class="preview-accessory-name">${this.escapeHtml(a.accessory_name || '')}</span>
+                            ${a.quantity ? `<span class="preview-accessory-qty">×${a.quantity}</span>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+
+            <!-- 底部区域：核心卖点 -->
+            <div class="preview-footer">
+                <div class="preview-highlights-section">
+                    <h3 class="preview-highlights-title">${this.t('key-highlights')}</h3>
+                    <div class="preview-highlights-grid">
+                        ${highlights.map((h, i) => `
+                            <div class="preview-highlight-item">
+                                <div class="preview-highlight-icon">${this.getHighlightIcon(i)}</div>
+                                <div class="preview-highlight-content">
+                                    <span class="preview-highlight-key">${this.escapeHtml(h.highlight_key || '')}</span>
+                                    <span class="preview-highlight-value">${this.escapeHtml(h.highlight_value || '')}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            .preview-page {
+                max-width: 1200px;
+                margin: 0 auto;
+                background: #fff;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }
+            .preview-hero {
+                display: flex;
+                padding: 60px 80px;
+                gap: 60px;
+                align-items: center;
+            }
+            .preview-hero-content { flex: 1; }
+            .preview-title {
+                font-size: 56px;
+                font-weight: 900;
+                letter-spacing: -2px;
+                line-height: 1.1;
+                margin-bottom: 16px;
+                color: #000;
+            }
+            .preview-subtitle {
+                font-size: 22px;
+                color: #1e40af;
+                margin-bottom: 12px;
+                font-weight: 600;
+            }
+            .preview-description {
+                font-size: 20px;
+                color: #555;
+                margin-bottom: 32px;
+                line-height: 1.5;
+            }
+            .preview-features-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+            }
+            .preview-feature-item {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            .preview-feature-icon {
+                width: 44px;
+                height: 44px;
+                flex-shrink: 0;
+            }
+            .preview-feature-icon svg {
+                width: 100%;
+                height: 100%;
+            }
+            .preview-feature-text {
+                font-size: 16px;
+                font-weight: 500;
+                color: #333;
+            }
+            .preview-hero-image {
+                flex: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 400px;
+                background: #ffffff;
+                border-radius: 8px;
+            }
+            .preview-hero-image img {
+                max-width: 100%;
+                max-height: 500px;
+                object-fit: contain;
+            }
+            .preview-image-placeholder {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                color: #999;
+                font-size: 14px;
+                gap: 8px;
+            }
+            .preview-image-placeholder span:first-child {
+                font-size: 64px;
+            }
+            .preview-section-title {
+                text-align: center;
+                font-size: 28px;
+                font-weight: 700;
+                letter-spacing: 3px;
+                margin: 50px 0 35px;
+                color: #1e40af;
+            }
+            .preview-features-section {
+                padding: 0 80px 50px;
+            }
+            .preview-features-cards {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 20px;
+            }
+            .preview-feature-card {
+                background: #fafafa;
+                border-radius: 8px;
+                overflow: hidden;
+            }
+            .preview-feature-card-image {
+                width: 100%;
+                aspect-ratio: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 48px;
+                background: #e8e8e8;
+            }
+            .preview-feature-card-content {
+                padding: 20px;
+            }
+            .preview-feature-card-title {
+                font-size: 15px;
+                font-weight: 700;
+                margin-bottom: 8px;
+                color: #1e40af;
+            }
+            .preview-feature-card-description {
+                font-size: 14px;
+                color: #666;
+                line-height: 1.5;
+            }
+            .preview-bottom {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 60px;
+                padding: 0 80px 60px;
+            }
+            .preview-dimensions h3,
+            .preview-specifications h3 {
+                font-size: 20px;
+                font-weight: 700;
+                letter-spacing: 1.5px;
+                margin-bottom: 24px;
+                text-align: center;
+                color: #1e40af;
+            }
+            .preview-dimensions-content {
+                background: #fafafa;
+                padding: 30px;
+                border-radius: 8px;
+                min-height: 200px;
+            }
+            .preview-dim-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 12px 0;
+                border-bottom: 1px solid #e8e8e8;
+            }
+            .preview-dim-row:last-child { border-bottom: none; }
+            .preview-dim-label { font-size: 15px; color: #666; }
+            .preview-dim-value { font-size: 15px; color: #000; font-weight: 600; }
+            .preview-specs-table {
+                width: 100%;
+            }
+            .preview-spec-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 14px 0;
+                border-bottom: 1px solid #e8e8e8;
+            }
+            .preview-spec-label {
+                font-size: 15px;
+                color: #666;
+            }
+            .preview-spec-value {
+                font-size: 15px;
+                color: #000;
+                font-weight: 600;
+            }
+            .preview-specs-section { padding: 0 80px 50px; }
+            .preview-specs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+            .preview-spec-item { display: flex; justify-content: space-between; padding: 16px 20px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #1e40af; }
+            .preview-dimensions-section { padding: 0 80px 50px; }
+            .preview-dimensions-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+            .preview-dim-item { display: flex; justify-content: space-between; padding: 16px 20px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #059669; }
+            .preview-accessories-section { padding: 0 80px 50px; }
+            .preview-accessories-list { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+            .preview-accessory-item { display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: #f8fafc; border-radius: 8px; }
+            .preview-accessory-icon { font-size: 20px; }
+            .preview-accessory-name { font-size: 14px; color: #333; flex: 1; }
+            .preview-accessory-qty { font-size: 14px; color: #1e40af; font-weight: 600; background: #eff6ff; padding: 2px 8px; border-radius: 4px; }
+            .preview-footer { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); padding: 50px 80px; margin-top: 20px; }
+            .preview-highlights-section { max-width: 900px; margin: 0 auto; }
+            .preview-highlights-title { font-size: 22px; font-weight: 700; letter-spacing: 3px; margin-bottom: 30px; color: #fff; text-align: center; text-transform: uppercase; }
+            .preview-highlights-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+            .preview-highlight-item { display: flex; align-items: flex-start; gap: 14px; padding: 20px; background: rgba(255, 255, 255, 0.15); border-radius: 10px; backdrop-filter: blur(4px); }
+            .preview-highlight-icon { font-size: 28px; flex-shrink: 0; }
+            .preview-highlight-content { display: flex; flex-direction: column; gap: 4px; }
+            .preview-highlight-key { font-size: 13px; color: rgba(255, 255, 255, 0.8); }
+            .preview-highlight-value { font-size: 16px; color: #fff; font-weight: 600; }
+            @media (max-width: 1024px) {
+                .preview-hero { flex-direction: column; padding: 40px 30px; gap: 30px; }
+                .preview-title { font-size: 42px; }
+                .preview-features-grid { grid-template-columns: repeat(2, 1fr); }
+                .preview-features-cards { grid-template-columns: repeat(2, 1fr); }
+                .preview-specs-grid { grid-template-columns: repeat(2, 1fr); }
+                .preview-dimensions-grid { grid-template-columns: repeat(2, 1fr); }
+                .preview-accessories-list { grid-template-columns: repeat(3, 1fr); }
+                .preview-highlights-grid { grid-template-columns: repeat(2, 1fr); }
+                .preview-footer { padding: 40px 30px; }
+            }
+            @media (max-width: 768px) {
+                .preview-features-grid { grid-template-columns: 1fr; }
+                .preview-features-cards { grid-template-columns: 1fr; }
+                .preview-specs-grid { grid-template-columns: 1fr; }
+                .preview-dimensions-grid { grid-template-columns: 1fr; }
+                .preview-accessories-list { grid-template-columns: repeat(2, 1fr); }
+                .preview-highlights-grid { grid-template-columns: 1fr; }
+                .preview-hero { padding: 30px 20px; }
+                .preview-title { font-size: 36px; }
+                .preview-section-title { font-size: 22px; margin: 40px 0 30px; }
+                .preview-features-section, .preview-specs-section, .preview-dimensions-section, .preview-accessories-section { padding: 0 20px 30px; }
+                .preview-footer { padding: 30px 20px; }
+            }
+        </style>
+        `;
+    }
+
+    getHighlightIcon(index) {
+        const icons = ['✓', '★', '◆', '●', '▲', '♦'];
+        return icons[index % icons.length];
+    }
+
+    getFeatureIcon(index) {
+        const icons = [
+            '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+            '<path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/><path d="M12 3v9l4 4"/>',
+            '<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M7 8V6a5 5 0 0110 0v2"/>',
+            '<path d="M8 6v12M16 6v12M12 4v16"/><path d="M4 12h16"/>'
+        ];
+        return icons[index % icons.length];
+    }
+
+    async loadProductImagesForPreview(productId) {
+        const API_BASE = `${window.location.origin}/api`;
+        try {
+            const resp = await fetch(`${API_BASE}/images/${productId}/images`, {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            const data = await resp.json();
+            const images = data.images || [];
+
+            // 设置主图
+            const mainImage = images.find(i => i.image_type === 'main');
+            if (mainImage) {
+                const img = document.getElementById('previewMainImage');
+                if (img) {
+                    img.src = mainImage.image_url;
+                    img.style.display = 'block';
+                    const placeholder = document.getElementById('previewImagePlaceholder');
+                    if (placeholder) placeholder.style.display = 'none';
+                }
+            }
+
+            // 设置尺寸图
+            const dimImage = images.find(i => i.image_type === 'dimension');
+            if (dimImage) {
+                const img = document.getElementById('previewDimensionImage');
+                if (img) {
+                    img.src = dimImage.image_url;
+                    img.style.display = 'block';
+                    const placeholder = document.getElementById('previewDimPlaceholder');
+                    if (placeholder) placeholder.style.display = 'none';
+                }
+            }
+        } catch (err) {
+            console.log('加载预览图片失败', err);
+        }
+    }
+
+    closePreview() {
+        document.getElementById('previewModal')?.classList.remove('active');
+    }
+
+    async exportManualPages(format) {
+        const pages = this.getManualPages(this.currentProduct);
+        const productName = this.currentProduct?.name?.replace(/\s+/g, '-').toLowerCase() || 'product';
+        const timestamp = new Date().toISOString().slice(0, 10);
+
+        showToast(`正在导出 ${pages.length} 页...`);
+
+        // 动态加载 html2canvas
+        if (!window.html2canvas) {
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // 为每页创建独立的canvas
+        const canvases = [];
+
+        for (let i = 0; i < pages.length; i++) {
+            // 渲染当前页
+            this.renderManualPage(i);
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            const content = document.getElementById('previewContent');
+            const pageEl = content.querySelector('.manual-page');
+
+            if (pageEl) {
+                const canvas = await html2canvas(pageEl, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff'
+                });
+                canvases.push(canvas);
+            }
+
+            showToast(`已导出第 ${i + 1}/${pages.length} 页`);
+        }
+
+        // 恢复显示当前页
+        this.renderManualPage(this.currentPage);
+
+        // 合并所有canvas为一张长图
+        if (canvases.length > 0) {
+            // 计算总高度（按9:16比例，宽度540px）
+            const pageWidth = 540;
+            const pageHeight = 960; // 16/9 * 540
+            const totalHeight = canvases.length * pageHeight;
+            const scale = 2;
+
+            const mergedCanvas = document.createElement('canvas');
+            mergedCanvas.width = pageWidth * scale;
+            mergedCanvas.height = totalHeight * scale;
+            const ctx = mergedCanvas.getContext('2d');
+
+            canvases.forEach((canvas, i) => {
+                ctx.drawImage(canvas, 0, i * pageHeight * scale, pageWidth * scale, pageHeight * scale);
+            });
+
+            const link = document.createElement('a');
+            link.download = `${productName}-manual-${timestamp}.${format === 'jpg' ? 'jpg' : 'png'}`;
+            link.href = mergedCanvas.toDataURL(format === 'jpg' ? 'image/jpeg' : 'image/png', 0.95);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast('导出成功！');
+        }
+    }
+
+    async exportPreview(format) {
+        const content = document.getElementById('previewContent');
+        if (!content) return;
+
+        showToast('正在导出...');
+
+        try {
+            // 动态加载 html2canvas
+            if (!window.html2canvas) {
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            }
+
+            // 如果是手册模式，导出所有页面
+            if (this.currentTemplate === 'manual' && this.totalPages > 1) {
+                await this.exportManualPages(format);
+                return;
+            }
+
+            // 获取完整内容高度
+            const scrollHeight = content.scrollHeight;
+            const scrollWidth = content.scrollWidth;
+
+            // 创建临时容器用于完整截图 - 使用固定高度确保完整捕获
+            const tempContainer = document.createElement('div');
+            tempContainer.style.cssText = `
+                position: fixed;
+                left: -9999px;
+                top: 0;
+                width: ${scrollWidth}px;
+                height: ${scrollHeight + 100}px;
+                background: #ffffff;
+                z-index: -1;
+            `;
+
+            // 克隆内容
+            const clonedContent = content.cloneNode(true);
+            // 设置克隆内容的高度和宽度以匹配原始内容
+            clonedContent.style.cssText = `
+                width: ${scrollWidth}px;
+                height: ${scrollHeight + 100}px;
+                overflow: visible;
+            `;
+            tempContainer.appendChild(clonedContent);
+            document.body.appendChild(tempContainer);
+
+            // 等待图片加载
+            const images = tempContainer.querySelectorAll('img');
+            await Promise.all(Array.from(images).map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise(resolve => {
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                });
+            }));
+
+            // 额外等待确保所有CSS和渲染完成
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const canvas = await html2canvas(tempContainer, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff',
+                x: 0,
+                y: 0,
+                width: scrollWidth,
+                height: scrollHeight + 100,
+                windowWidth: scrollWidth,
+                windowHeight: scrollHeight + 150,
+                scrollX: 0,
+                scrollY: 0,
+                logging: false,
+                onclone: (clonedDoc) => {
+                    // 确保克隆的文档中内容高度正确
+                    const clonedEl = clonedDoc.querySelector('[style*="position: fixed"]') || clonedDoc.body.firstChild;
+                    if (clonedEl && clonedEl.style) {
+                        clonedEl.style.position = 'absolute';
+                        clonedEl.style.top = '0';
+                        clonedEl.style.left = '0';
+                    }
+                }
+            });
+
+            // 清理临时容器
+            document.body.removeChild(tempContainer);
+
+            const link = document.createElement('a');
+            const timestamp = new Date().toISOString().slice(0, 10);
+            const productName = content.querySelector('.preview-title')?.textContent?.replace(/\s+/g, '-').toLowerCase() || 'product';
+
+            if (format === 'jpg') {
+                link.download = `${productName}-${timestamp}.jpg`;
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+            } else {
+                link.download = `${productName}-${timestamp}.png`;
+                link.href = canvas.toDataURL('image/png');
+            }
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast('导出成功');
+        } catch (err) {
+            console.error('导出失败:', err);
+            showToast('导出失败: ' + err.message, 'error');
+        }
+    }
+
+    async editProduct(id) {
+        try {
+            const product = await productsAPI.getById(id, this.token);
+            const p = product.product || product;
+            
+            document.getElementById('productId').value = id;
+            document.getElementById('productSku').value = p.sku || '';
+            document.getElementById('productName').value = p.name;
+            document.getElementById('productSubtitle').value = p.subtitle || '';
+            document.getElementById('productPrice').value = p.price || '';
+            document.getElementById('productCurrency').value = p.currency || 'USD';
+            document.getElementById('productStatus').value = p.status || 'draft';
+            document.getElementById('modalTitle').textContent = '编辑产品';
+            
+            this.renderDataList('Highlights', p.highlights || []);
+            this.renderDataList('Specs', p.specs || []);
+            this.renderDataList('Accessories', p.accessories || []);
+            this.renderDataList('Features', p.features || []);
+            this.renderDataList('Dimensions', p.dimensions || []);
+            
+            document.getElementById('productModal').classList.add('active');
+        } catch (err) {
+            showToast('加载产品失败', 'error');
+        }
+    }
+
+    async deleteProduct(id) {
+        if (!confirm('确定要删除这个产品吗？')) return;
+
+        try {
+            await productsAPI.delete(id, this.token);
+            appState.removeProduct(id);
+            this.loadProducts();
+            showToast('删除成功');
+        } catch (err) {
+            showToast('删除失败', 'error');
+        }
+    }
+
+    async handleProductSubmit(e) {
+        e.preventDefault();
+        
+        const id = document.getElementById('productId').value;
+        const productData = {
+            sku: document.getElementById('productSku').value,
+            name: document.getElementById('productName').value,
+            subtitle: document.getElementById('productSubtitle').value,
+            price: parseFloat(document.getElementById('productPrice').value) || null,
+            currency: document.getElementById('productCurrency').value,
+            status: document.getElementById('productStatus').value
+        };
+
+        try {
+            if (id) {
+                await productsAPI.update(id, productData, this.token);
+                showToast('更新成功');
+            } else {
+                await productsAPI.create(productData, this.token);
+                showToast('创建成功');
+            }
+            
+            document.getElementById('productModal').classList.remove('active');
+            this.loadProducts();
+        } catch (err) {
+            showToast('保存失败', 'error');
+        }
+    }
+
+    // Agent相关方法
+    async loadAgentTools() {
+        try {
+            const data = await agentAPI.getTools(this.token);
+            const container = document.getElementById('agentToolsList');
+            if (!container) return;
+
+            if (data.tools && data.tools.length > 0) {
+                container.innerHTML = data.tools.map(tool => `
+                    <div style="margin-bottom: 8px; padding: 8px; background: #f1f5f9; border-radius: 4px;">
+                        <div style="font-weight: 600; color: #1e40af;">${tool.function.name}</div>
+                        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">${tool.function.description}</div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = '<p style="color: #94a3b8;">暂无可用工具</p>';
+            }
+        } catch (error) {
+            const container = document.getElementById('agentToolsList');
+            if (container) {
+                container.innerHTML = '<p style="color: #dc2626;">加载失败</p>';
+            }
+        }
+    }
+
+    async loadKBStats() {
+        try {
+            const data = await agentAPI.getKBStats(this.token);
+            const container = document.getElementById('kbStats');
+            if (!container) return;
+
+            container.innerHTML = `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span>文档数量:</span>
+                    <span style="font-weight: 600;">${data.documentCount || 0}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>最后同步:</span>
+                    <span style="font-size: 12px;">${data.lastSync ? new Date(data.lastSync).toLocaleString() : '未同步'}</span>
+                </div>
+            `;
+        } catch (error) {
+            const container = document.getElementById('kbStats');
+            if (container) {
+                container.innerHTML = '<p style="color: #dc2626;">加载失败</p>';
+            }
+        }
+    }
+
+    async loadConversations() {
+        try {
+            const data = await agentAPI.getConversations(this.token);
+            const container = document.getElementById('conversationList');
+            if (!container) return;
+
+            const currentId = appState.getState().currentConversationId;
+
+            if (data.conversations && data.conversations.length > 0) {
+                container.innerHTML = `
+                    <div style="margin-bottom: 8px;">
+                        <button onclick="app.newConversation()" style="width:100%;padding:8px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;">+ 新对话</button>
+                    </div>
+                ` + data.conversations.map(conv => `
+                    <div style="padding:10px;background:${conv.id === currentId ? '#dbeafe' : '#f1f5f9'};border-radius:6px;margin-bottom:6px;cursor:pointer;border:${conv.id === currentId ? '1px solid #3b82f6' : '1px solid transparent'};transition:all 0.2s;"
+                         onclick="app.loadConversation('${conv.id}')">
+                        <div style="font-weight:600;font-size:13px;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${conv.title || '新对话'}</div>
+                        <div style="font-size:11px;color:#94a3b8;margin-top:4px;display:flex;justify-content:space-between;">
+                            <span>${new Date(conv.updated_at || conv.created_at).toLocaleString()}</span>
+                            <span>${conv.message_count || 0} 条消息</span>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = `
+                    <div style="margin-bottom:8px;">
+                        <button onclick="app.newConversation()" style="width:100%;padding:8px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;">+ 新对话</button>
+                    </div>
+                    <p style="color:#94a3b8;text-align:center;padding:20px;">暂无会话</p>
+                `;
+            }
+        } catch (error) {
+            const container = document.getElementById('conversationList');
+            if (container) {
+                container.innerHTML = '<p style="color: #dc2626;">加载失败</p>';
+            }
+        }
+    }
+
+    newConversation() {
+        appState.setCurrentConversationId(null);
+        const container = document.getElementById('agentMessages');
+        if (container) container.innerHTML = '';
+        this.loadConversations();
+    }
+
+    async loadConversation(conversationId) {
+        try {
+            const data = await agentAPI.getConversation(conversationId, this.token);
+            
+            if (data.messages) {
+                appState.setCurrentConversationId(conversationId);
+                const container = document.getElementById('agentMessages');
+                if (container) {
+                    container.innerHTML = '';
+                    data.messages.forEach(msg => {
+                        if (msg.role === 'user' || msg.role === 'assistant') {
+                            this.addMessageToUI(msg.role, msg.content);
+                        }
+                    });
+                }
+                this.loadConversations();
+            }
+        } catch (error) {
+            showToast('加载会话失败', 'error');
+        }
+    }
+
+    addMessageToUI(role, content) {
+        const container = document.getElementById('agentMessages');
+        if (!container) return;
+
+        const msgDiv = document.createElement('div');
+        msgDiv.style.cssText = `
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            max-width: 80%;
+            ${role === 'user' ? 'margin-left: auto; background: #3b82f6; color: white;' : 'background: white; border: 1px solid #e5e7eb;'}
+        `;
+
+        const roleLabel = role === 'user' ? '👤 你' : '🤖 AI';
+        const formattedContent = this.renderMessageContent(content);
+        msgDiv.innerHTML = `
+            <div style="font-size: 12px; color: ${role === 'user' ? 'rgba(255,255,255,0.8)' : '#94a3b8'}; margin-bottom: 4px;">${roleLabel}</div>
+            <div style="white-space: pre-wrap; line-height: 1.6;">${formattedContent}</div>
+        `;
+
+        container.appendChild(msgDiv);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    renderMessageContent(content) {
+        if (!content) return '';
+        let escaped = this.escapeHtml(content);
+        // 将URL转换为可点击链接
+        escaped = escaped.replace(
+            /(https?:\/\/[^\s<]+)/g,
+            '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#3b82f6;text-decoration:underline;word-break:break-all;">$1</a>'
+        );
+        // 将换行转换为<br>
+        escaped = escaped.replace(/\n/g, '<br>');
+        return escaped;
+    }
+
+    addAttachmentCard(attachments) {
+        const container = document.getElementById('agentMessages');
+        if (!container || !attachments || attachments.length === 0) return;
+
+        const cardDiv = document.createElement('div');
+        cardDiv.style.cssText = `
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            background: white;
+            border: 1px solid #e5e7eb;
+        `;
+
+        const typeIcons = { image: '🖼️', document: '📄' };
+        const itemsHtml = attachments.map(att => {
+            const icon = typeIcons[att.category] || '📎';
+            const downloadUrl = att.download_url || att.url;
+            return `
+                <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9;">
+                    <span style="font-size:24px;">${icon}</span>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:13px;font-weight:500;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${this.escapeHtml(att.title || '附件')}</div>
+                        <div style="font-size:11px;color:#94a3b8;">
+                            ${att.category === 'image' ? '图片 · ' + (att.type || '') : '文档 · ' + (att.type || '')}
+                            ${att.file_size ? ' · ' + (att.file_size / 1024).toFixed(1) + ' KB' : ''}
+                        </div>
+                    </div>
+                    <a href="${this.escapeHtml(downloadUrl)}" target="_blank" rel="noopener noreferrer"
+                       style="padding:6px 14px;background:#3b82f6;color:white;border-radius:6px;text-decoration:none;font-size:12px;white-space:nowrap;flex-shrink:0;">
+                        📥 下载
+                    </a>
+                </div>
+            `;
+        }).join('');
+
+        cardDiv.innerHTML = `
+            <div style="font-size: 12px; color: #94a3b8; margin-bottom: 8px;">📎 附件列表</div>
+            ${itemsHtml}
+        `;
+
+        container.appendChild(cardDiv);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    addStreamingMessage() {
+        const container = document.getElementById('agentMessages');
+        if (!container) return null;
+
+        const msgDiv = document.createElement('div');
+        msgDiv.style.cssText = `
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            max-width: 80%;
+            background: white;
+            border: 1px solid #e5e7eb;
+        `;
+
+        msgDiv.innerHTML = `
+            <div style="font-size: 12px; color: #94a3b8; margin-bottom: 4px;">🤖 AI</div>
+            <div class="streaming-content" style="white-space: pre-wrap; line-height: 1.6;"><span class="streaming-cursor" style="display:inline-block;width:2px;height:16px;background:#3b82f6;animation:blink 0.8s infinite;vertical-align:text-bottom;"></span></div>
+        `;
+
+        container.appendChild(msgDiv);
+        container.scrollTop = container.scrollHeight;
+        return msgDiv;
+    }
+
+    appendStreamingContent(msgEl, content) {
+        if (!msgEl) return;
+        const contentEl = msgEl.querySelector('.streaming-content');
+        if (!contentEl) return;
+        const cursor = contentEl.querySelector('.streaming-cursor');
+        const text = document.createTextNode(content);
+        contentEl.insertBefore(text, cursor);
+        const container = document.getElementById('agentMessages');
+        if (container) container.scrollTop = container.scrollHeight;
+    }
+
+    finalizeStreamingMessage(msgEl, errorContent) {
+        if (!msgEl) return;
+        const cursor = msgEl.querySelector('.streaming-cursor');
+        if (cursor) cursor.remove();
+        if (errorContent) {
+            const contentEl = msgEl.querySelector('.streaming-content');
+            if (contentEl) {
+                contentEl.textContent = errorContent;
+                contentEl.style.color = '#dc2626';
+            }
+        }
+    }
+
+    addToolStep(toolCalls) {
+        const container = document.getElementById('agentMessages');
+        if (!container) return null;
+
+        const stepDiv = document.createElement('div');
+        stepDiv.style.cssText = 'margin-bottom:8px;display:flex;flex-direction:column;gap:4px;';
+
+        stepDiv.innerHTML = toolCalls.map(tc => `
+            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:8px 12px;font-size:12px;color:#0369a1;display:flex;align-items:center;gap:8px;">
+                <span style="font-size:14px;">🔍</span>
+                <span style="font-weight:500;">${tc.name === 'query_products' ? '查询产品' : tc.name === 'query_kb' ? '搜索知识库' : tc.name === 'read_file' ? '读取文件' : tc.name === 'write_file' ? '写入文件' : tc.name}</span>
+                <span style="color:#64748b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${tc.args ? tc.args.substring(0, 100) : ''}</span>
+                <span class="tool-step-spinner" style="width:14px;height:14px;border:2px solid #bae6fd;border-top-color:#0369a1;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;"></span>
+            </div>
+        `).join('');
+
+        container.appendChild(stepDiv);
+        container.scrollTop = container.scrollHeight;
+        return stepDiv;
+    }
+
+    completeToolStep(stepEl, results) {
+        if (!stepEl) return;
+        const spinners = stepEl.querySelectorAll('.tool-step-spinner');
+        spinners.forEach(s => {
+            s.style.border = '2px solid #86efac';
+            s.style.borderTopColor = '#16a34a';
+            s.style.animation = 'none';
+            s.style.width = '10px';
+            s.style.height = '10px';
+            s.style.background = '#16a34a';
+            s.style.borderRadius = '50%';
+        });
+        if (results && results.length > 0) {
+            const resultDiv = document.createElement('div');
+            resultDiv.style.cssText = 'margin-top:4px;padding:6px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;font-size:12px;color:#166534;';
+            resultDiv.textContent = `✓ 完成 — ${results.map(r => r.summary || '成功').join(' | ')}`;
+            stepEl.appendChild(resultDiv);
+        }
+        const container = document.getElementById('agentMessages');
+        if (container) container.scrollTop = container.scrollHeight;
+    }
+
+    showStopButton() {
+        const existing = document.getElementById('stopAgentBtn');
+        if (existing) return existing;
+
+        const container = document.getElementById('agentMessages');
+        if (!container) return null;
+
+        const btnDiv = document.createElement('div');
+        btnDiv.id = 'stopAgentBtn';
+        btnDiv.style.cssText = 'text-align:center;margin:8px 0;';
+
+        btnDiv.innerHTML = `
+            <button onclick="window.abortAgent()" style="padding:6px 20px;background:#ef4444;color:white;border:none;border-radius:20px;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:6px;transition:background 0.2s;"
+                    onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
+                <span>■</span> 停止生成
+            </button>
+        `;
+
+        container.appendChild(btnDiv);
+        container.scrollTop = container.scrollHeight;
+        return btnDiv;
+    }
+
+    hideStopButton() {
+        const btn = document.getElementById('stopAgentBtn');
+        if (btn) btn.remove();
+    }
+
+    // 设置相关方法
+    async loadSettings() {
+        try {
+            const config = await settingsAPI.getConfig(this.token);
+            
+            if (config.defaultProvider) {
+                document.getElementById('defaultProvider').value = config.defaultProvider;
+                this.onProviderChange();
+            }
+
+            if (config.providers && config.providers.ollama) {
+                document.getElementById('ollamaBaseUrl').value = config.providers.ollama.baseUrl || '';
+                this.setOllamaModel(config.providers.ollama.model || 'gemma4:e4b');
+            }
+
+            if (config.providers && config.providers.deepseek) {
+                document.getElementById('deepseekModel').value = config.providers.deepseek.model || 'deepseek-chat';
+            }
+
+            if (config.providers && config.providers.zhipu) {
+                document.getElementById('zhipuModel').value = config.providers.zhipu.model || 'glm-4-flash';
+            }
+
+            if (config.maxIterations) {
+                document.getElementById('maxIterations').value = config.maxIterations;
+            }
+            if (config.maxTokens) {
+                document.getElementById('maxTokens').value = config.maxTokens;
+            }
+
+        } catch (error) {
+            console.error('加载设置失败:', error);
+        }
+    }
+
+    onProviderChange() {
+        const provider = document.getElementById('defaultProvider').value;
+        
+        document.getElementById('ollamaConfig').style.display = 'none';
+        document.getElementById('deepseekConfig').style.display = 'none';
+        document.getElementById('zhipuConfig').style.display = 'none';
+        
+        document.getElementById(provider + 'Config').style.display = 'block';
+    }
+
+    toggleCustomModel() {
+        const useCustom = document.getElementById('useCustomModel').checked;
+        document.getElementById('ollamaModelPreset').style.display = useCustom ? 'none' : 'block';
+        document.getElementById('ollamaModelCustom').style.display = useCustom ? 'block' : 'none';
+    }
+
+    getOllamaModel() {
+        const useCustom = document.getElementById('useCustomModel').checked;
+        return useCustom 
+            ? document.getElementById('ollamaModelCustom').value 
+            : document.getElementById('ollamaModelPreset').value;
+    }
+
+    setOllamaModel(modelName) {
+        const presetSelect = document.getElementById('ollamaModelPreset');
+        const customInput = document.getElementById('ollamaModelCustom');
+        const useCustomCheckbox = document.getElementById('useCustomModel');
+
+        const presetOption = Array.from(presetSelect.options).find(opt => opt.value === modelName);
+        
+        if (presetOption) {
+            presetSelect.value = modelName;
+            useCustomCheckbox.checked = false;
+            this.toggleCustomModel();
+        } else {
+            customInput.value = modelName;
+            useCustomCheckbox.checked = true;
+            this.toggleCustomModel();
+        }
+    }
+
+    clearAllDataLists() {
+        ['Highlights', 'Specs', 'Accessories', 'Features', 'Dimensions'].forEach(type => {
+            const el = document.getElementById('list' + type);
+            if (el) el.innerHTML = '';
+        });
+    }
+
+    renderDataList(type, items) {
+        const container = document.getElementById('list' + type);
+        if (!container) return;
+        if (!items.length) {
+            container.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:8px;">暂无数据</div>';
+            return;
+        }
+        container.innerHTML = items.map((item, i) => {
+            const id = item.id || 'new_' + i;
+            const fields = this.getFieldsByType(type, item);
+            return `
+                <div class="data-row" data-id="${id}" data-type="${type.toLowerCase()}">
+                    ${fields.map(f => `<input type="text" value="${this.escapeHtml(f.value)}" placeholder="${f.placeholder}" data-field="${f.field}">`).join('')}
+                    <div class="data-actions">
+                        <button type="button" class="btn-icon-sm btn-save-sm" onclick="app.saveDataItem('${type.toLowerCase()}', '${id}')">✓</button>
+                        <button type="button" class="btn-icon-sm btn-del-sm" onclick="app.delDataItem('${type.toLowerCase()}', '${id}')">×</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    getFieldsByType(type, item) {
+        const fields = {
+            Highlights: [
+                { field: 'highlight_key', value: item.highlight_key || '', placeholder: '属性名称' },
+                { field: 'highlight_value', value: item.highlight_value || '', placeholder: '属性值' }
+            ],
+            Specs: [
+                { field: 'spec_label', value: item.spec_label || '', placeholder: '规格名称' },
+                { field: 'spec_value', value: item.spec_value || '', placeholder: '规格值' },
+                { field: 'spec_unit', value: item.spec_unit || '', placeholder: '单位' }
+            ],
+            Accessories: [
+                { field: 'accessory_name', value: item.accessory_name || '', placeholder: '配件名称' },
+                { field: 'quantity', value: item.quantity || 1, placeholder: '数量' }
+            ],
+            Features: [
+                { field: 'icon_emoji', value: item.icon_emoji || '', placeholder: '图标' },
+                { field: 'feature_title', value: item.feature_title || '', placeholder: '功能标题' },
+                { field: 'description', value: item.description || '', placeholder: '描述' }
+            ],
+            Dimensions: [
+                { field: 'dim_label', value: item.dim_label || '', placeholder: '尺寸名称' },
+                { field: 'dim_value', value: item.dim_value || '', placeholder: '尺寸值' },
+                { field: 'dim_unit', value: item.dim_unit || '', placeholder: '单位' }
+            ]
+        };
+        return fields[type] || [];
+    }
+
+    escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    async saveDataItem(type, id) {
+        const row = document.querySelector(`.data-row[data-id="${id}"]`);
+        if (!row) return;
+        const inputs = row.querySelectorAll('input');
+        const data = {};
+        const productId = document.getElementById('productId').value;
+        if (!productId) { showToast('请先保存产品基本信息', 'error'); return; }
+
+        if (type === 'highlights') {
+            data.highlight_key = inputs[0].value;
+            data.highlight_value = inputs[1].value;
+        } else if (type === 'specs') {
+            data.spec_label = inputs[0].value;
+            data.spec_value = inputs[1].value;
+            data.spec_unit = inputs[2].value;
+        } else if (type === 'accessories') {
+            data.accessory_name = inputs[0].value;
+            data.quantity = parseInt(inputs[1].value) || 1;
+        } else if (type === 'features') {
+            data.icon_emoji = inputs[0].value;
+            data.feature_title = inputs[1].value;
+            data.description = inputs[2].value;
+        } else if (type === 'dimensions') {
+            data.dim_label = inputs[0].value;
+            data.dim_value = inputs[1].value;
+            data.dim_unit = inputs[2].value;
+        }
+
+        try {
+            const API_BASE = `${window.location.origin}/api`;
+            if (id.startsWith('new_')) {
+                const res = await fetch(`${API_BASE}/products/${productId}/${type}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) { showToast('添加成功', 'success'); this.loadProductData(productId); }
+                else { showToast('添加失败', 'error'); }
+            } else {
+                const res = await fetch(`${API_BASE}/products/${productId}/${type}/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) { showToast('更新成功', 'success'); this.loadProductData(productId); }
+                else { showToast('更新失败', 'error'); }
+            }
+        } catch (err) { showToast('网络错误', 'error'); }
+    }
+
+    async delDataItem(type, id) {
+        if (!confirm('确定删除?')) return;
+        const productId = document.getElementById('productId').value;
+        const API_BASE = `${window.location.origin}/api`;
+        try {
+            const res = await fetch(`${API_BASE}/products/${productId}/${type}/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            if (res.ok) { showToast('删除成功', 'success'); this.loadProductData(productId); }
+            else { showToast('删除失败', 'error'); }
+        } catch (err) { showToast('网络错误', 'error'); }
+    }
+
+    async addDataItem(type) {
+        const productId = document.getElementById('productId').value;
+        if (!productId) { showToast('请先保存产品基本信息', 'error'); return; }
+
+        const data = {};
+        if (type === 'highlights') {
+            data.highlight_key = document.getElementById('addHighlightKey').value;
+            data.highlight_value = document.getElementById('addHighlightValue').value;
+        } else if (type === 'specs') {
+            data.spec_label = document.getElementById('addSpecLabel').value;
+            data.spec_value = document.getElementById('addSpecValue').value;
+            data.spec_unit = document.getElementById('addSpecUnit').value;
+        } else if (type === 'accessories') {
+            data.accessory_name = document.getElementById('addAccessoryName').value;
+            data.quantity = parseInt(document.getElementById('addAccessoryQty').value) || 1;
+        } else if (type === 'features') {
+            data.icon_emoji = document.getElementById('addFeatureEmoji').value;
+            data.feature_title = document.getElementById('addFeatureTitle').value;
+            data.description = document.getElementById('addFeatureDesc').value;
+        } else if (type === 'dimensions') {
+            data.dim_label = document.getElementById('addDimLabel').value;
+            data.dim_value = document.getElementById('addDimValue').value;
+            data.dim_unit = document.getElementById('addDimUnit').value;
+        }
+
+        const API_BASE = `${window.location.origin}/api`;
+        try {
+            const res = await fetch(`${API_BASE}/products/${productId}/${type}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) {
+                showToast('添加成功', 'success');
+                this.hideAddForm(type.charAt(0).toUpperCase() + type.slice(1));
+                this.loadProductData(productId);
+            } else {
+                showToast('添加失败', 'error');
+            }
+        } catch (err) { showToast('网络错误', 'error'); }
+    }
+
+    async loadProductData(productId) {
+        try {
+            const product = await productsAPI.getById(productId, this.token);
+            const p = product.product || product;
+            this.renderDataList('Highlights', p.highlights || []);
+            this.renderDataList('Specs', p.specs || []);
+            this.renderDataList('Accessories', p.accessories || []);
+            this.renderDataList('Features', p.features || []);
+            this.renderDataList('Dimensions', p.dimensions || []);
+        } catch (err) {
+            showToast('加载产品数据失败', 'error');
+        }
+    }
+
+    toggleSection(type) {
+        const el = document.getElementById('section' + type);
+        if (el) el.classList.toggle('collapsed');
+    }
+
+    showAddForm(type) {
+        const el = document.getElementById('form' + type);
+        if (el) el.classList.add('active');
+    }
+
+    hideAddForm(type) {
+        const el = document.getElementById('form' + type);
+        if (el) el.classList.remove('active');
+        this.clearAddForm(type);
+    }
+
+    clearAddForm(type) {
+        const prefix = {
+            Highlights: { key: 'addHighlightKey', val: 'addHighlightValue' },
+            Specs: { key: 'addSpecLabel', val: 'addSpecValue', unit: 'addSpecUnit' },
+            Accessories: { key: 'addAccessoryName', val: 'addAccessoryQty' },
+            Features: { key: 'addFeatureEmoji', val: 'addFeatureTitle', desc: 'addFeatureDesc' },
+            Dimensions: { key: 'addDimLabel', val: 'addDimValue', unit: 'addDimUnit' }
+        };
+        const ids = prefix[type];
+        if (ids) Object.values(ids).forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    }
+
+    openImportModal() {
+        document.getElementById('importModal').classList.add('active');
+        document.getElementById('csvPreview').classList.add('hidden');
+        document.getElementById('csvFileInput').value = '';
+        this.importedCsvData = [];
+    }
+
+    closeImportModal() {
+        document.getElementById('importModal').classList.remove('active');
+    }
+
+    handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            this.parseAndPreviewCsv(e.target.result);
+        };
+        reader.readAsText(file, 'UTF-8');
+    }
+
+    parseAndPreviewCsv(content) {
+        const lines = content.split('\n').filter(line => line.trim());
+        if (lines.length < 2) {
+            showToast('CSV文件数据不足', 'error');
+            return;
+        }
+
+        const headers = this.parseCSVLine(lines[0]);
+        const rows = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            const values = this.parseCSVLine(lines[i]);
+            const row = {};
+            headers.forEach((h, idx) => {
+                row[h] = values[idx] || '';
+            });
+            rows.push(row);
+        }
+
+        const requiredCols = ['产品ID', 'SKU', '产品名称', '数据类型', '项目', '值'];
+        const missing = requiredCols.filter(col => !headers.includes(col));
+        if (missing.length > 0) {
+            showToast(`缺少必需列: ${missing.join(', ')}`, 'error');
+            return;
+        }
+
+        this.importedCsvData = rows;
+
+        const previewHead = document.getElementById('csvPreviewHead');
+        const previewBody = document.getElementById('csvPreviewBody');
+        const statsDiv = document.getElementById('csvStats');
+
+        previewHead.innerHTML = `<tr>${headers.map(h => `<th style="padding:8px;border:1px solid #e2e8f0;">${h}</th>`).join('')}</tr>`;
+
+        previewBody.innerHTML = rows.slice(0, 5).map(row => `
+            <tr>${headers.map(h => `<td style="padding:8px;border:1px solid #e2e8f0;font-size:12px;">${this.escapeHtml(row[h] || '')}</td>`).join('')}</tr>
+        `).join('');
+
+        if (rows.length > 5) {
+            previewBody.innerHTML += `<tr><td colspan="${headers.length}" style="padding:8px;text-align:center;color:#94a3b8;">... 还有 ${rows.length - 5} 行数据</td></tr>`;
+        }
+
+        const products = [...new Set(rows.map(r => r['产品名称']))];
+        const categories = {};
+        rows.forEach(r => {
+            const cat = r['数据类型'];
+            categories[cat] = (categories[cat] || 0) + 1;
+        });
+
+        statsDiv.innerHTML = `
+            <span class="csv-stat-tag csv-stat-products">📦 ${products.length} 个产品</span>
+            <span class="csv-stat-tag csv-stat-rows">📋 ${rows.length} 条数据</span>
+            ${Object.entries(categories).map(([cat, count]) => `<span class="csv-stat-tag csv-stat-category">${cat}: ${count}</span>`).join('')}
+        `;
+
+        document.getElementById('csvPreview').classList.remove('hidden');
+    }
+
+    parseCSVLine(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                result.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        result.push(current.trim());
+        return result;
+    }
+
+    async importCsvData() {
+        if (!this.importedCsvData || this.importedCsvData.length === 0) {
+            showToast('请先选择CSV文件', 'error');
+            return;
+        }
+
+        const API_BASE = `${window.location.origin}/api`;
+        try {
+            const res = await fetch(`${API_BASE}/export/import/csv`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
+                body: JSON.stringify({ products: this.importedCsvData })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                showToast(data.message, 'success');
+                this.closeImportModal();
+                this.loadProducts();
+            } else {
+                showToast(data.error || '导入失败', 'error');
+            }
+        } catch (err) {
+            showToast('网络错误', 'error');
+        }
+    }
+
+    downloadTemplate() {
+        const template = `产品ID,SKU,产品名称,数据类型,项目,值
+1,PROD-S001,示例产品名称,核心卖点,材质,不锈钢
+1,PROD-S001,示例产品名称,产品规格,重量,10KG
+1,PROD-S001,示例产品名称,包装清单,主机,1
+1,PROD-S001,示例产品名称,功能亮点,易操作,简单上手
+1,PROD-S001,示例产品名称,适配尺寸,高度,100CM`;
+
+        const blob = new Blob(['\uFEFF' + template], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'product_template.csv';
+        link.click();
+    }
+
+    // ========== 附件管理功能（图片 + 文档）==========
+    currentImages = [];
+    currentDocuments = [];
+    currentImageProductId = null;
+    currentAttachmentTab = 'images';
+
+    switchAttachmentTab(tab) {
+        this.currentAttachmentTab = tab;
+        document.getElementById('attachmentImagesSection').classList.toggle('hidden', tab !== 'images');
+        document.getElementById('attachmentDocumentsSection').classList.toggle('hidden', tab !== 'documents');
+        document.getElementById('attachmentListTitle').textContent = tab === 'images' ? '已上传图片' : '已上传文档';
+        this.loadAttachments();
+    }
+
+    async loadImagesProducts() {
+        const select = document.getElementById('imageProductSelect');
+        if (!select) return;
+
+        try {
+            const data = await productsAPI.getAll(this.token);
+            const products = data.products || [];
+
+            select.innerHTML = '<option value="">-- 请选择产品 --</option>';
+            products.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = `${p.sku || ''} - ${p.name}`;
+                select.appendChild(opt);
+            });
+
+            if (products.length > 0) {
+                select.value = products[0].id;
+                this.loadAttachments();
+            }
+        } catch (err) {
+            showToast('加载产品列表失败', 'error');
+        }
+    }
+
+    async loadAttachments() {
+        const productId = document.getElementById('imageProductSelect')?.value;
+        if (!productId) return;
+
+        this.currentImageProductId = productId;
+
+        if (this.currentAttachmentTab === 'images') {
+            await this.loadImages();
+        } else {
+            await this.loadDocuments();
+        }
+    }
+
+    async loadImages() {
+        const productId = this.currentImageProductId;
+        if (!productId) return;
+
+        const API_BASE = `${window.location.origin}/api`;
+
+        try {
+            const resp = await fetch(`${API_BASE}/images/${productId}/images`, {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            const data = await resp.json();
+
+            this.currentImages = data.images || [];
+            this.renderImages();
+        } catch (err) {
+            showToast('加载图片失败', 'error');
+        }
+    }
+
+    async loadDocuments() {
+        const productId = this.currentImageProductId;
+        if (!productId) return;
+
+        try {
+            const data = await productsAPI.getDocuments(productId, this.token);
+            this.currentDocuments = data.documents || [];
+            this.renderDocuments();
+        } catch (err) {
+            showToast('加载文档失败', 'error');
+        }
+    }
+
+    renderImages() {
+        const grid = document.getElementById('imagesGrid');
+        if (!grid) return;
+
+        if (this.currentImages.length === 0) {
+            grid.innerHTML = '<p style="color: #999; text-align: center; grid-column: 1/-1; padding: 40px;">暂无图片，请上传</p>';
+            return;
+        }
+
+        grid.innerHTML = this.currentImages.map(img => `
+            <div class="image-item" data-id="${img.id}">
+                <img src="${img.image_url}" alt="${img.alt_text || ''}" onerror="this.src='/placeholder.png'">
+                <span class="type-badge">${img.image_type}</span>
+                <button class="delete-btn" onclick="app.deleteImage(${img.id})">×</button>
+                <div class="image-info">${img.alt_text || (img.image_url ? img.image_url.split('/').pop() : '')}</div>
+            </div>
+        `).join('');
+    }
+
+    renderDocuments() {
+        const grid = document.getElementById('imagesGrid');
+        if (!grid) return;
+
+        if (this.currentDocuments.length === 0) {
+            grid.innerHTML = '<p style="color: #999; text-align: center; grid-column: 1/-1; padding: 40px;">暂无文档，请上传或链接</p>';
+            return;
+        }
+
+        const typeIcons = {
+            pdf: '📕', video: '▶️', manual: '📗', spec: '📘', other: '📄'
+        };
+        const typeLabels = {
+            pdf: 'PDF', video: '视频', manual: '说明书', spec: '规格书', other: '其他'
+        };
+        const linkLabels = {
+            upload: '已上传', local: '本地文件', external: '外部链接'
+        };
+
+        grid.innerHTML = this.currentDocuments.map(doc => `
+            <div class="image-item" data-id="${doc.id}" style="border: 2px solid ${doc.link_type === 'local' ? '#f59e0b' : doc.link_type === 'external' ? '#8b5cf6' : '#93c5fd'};">
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:140px;background:#f8fafc;gap:8px;">
+                    <span style="font-size:40px;">${typeIcons[doc.doc_type] || '📄'}</span>
+                    <span style="font-size:12px;color:#64748b;text-align:center;padding:0 8px;word-break:break-all;max-height:40px;overflow:hidden;">
+                        ${doc.title || doc.file_path?.split('/').pop() || ''}
+                    </span>
+                </div>
+                <span class="type-badge" style="background:${doc.link_type === 'local' ? '#fef3c7' : doc.link_type === 'external' ? '#ede9fe' : '#dbeafe'};color:${doc.link_type === 'local' ? '#92400e' : doc.link_type === 'external' ? '#6d28d9' : '#1e40af'}">
+                    ${typeLabels[doc.doc_type] || '文档'} · ${linkLabels[doc.link_type] || '已上传'}
+                </span>
+                <button class="delete-btn" onclick="app.deleteDocument(${doc.id})">×</button>
+                <div class="image-info" style="font-size:11px;">
+                    ${doc.file_size ? (doc.file_size / 1024).toFixed(1) + ' KB' : ''}
+                    ${doc.link_type === 'local' ? '🔗 本地' : doc.link_type === 'external' ? '🔗 外部' : ''}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async deleteImage(imageId) {
+        if (!confirm('确定删除这张图片？')) return;
+
+        const API_BASE = `${window.location.origin}/api`;
+        try {
+            const resp = await fetch(`${API_BASE}/images/${this.currentImageProductId}/images/${imageId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+
+            if (resp.ok) {
+                this.currentImages = this.currentImages.filter(i => i.id !== imageId);
+                this.renderImages();
+                showToast('删除成功');
+            }
+        } catch (err) {
+            showToast('删除失败', 'error');
+        }
+    }
+
+    async deleteDocument(docId) {
+        if (!confirm('确定删除此文档？')) return;
+
+        try {
+            const resp = await productsAPI.deleteDocument(this.currentImageProductId, docId, this.token);
+            this.currentDocuments = this.currentDocuments.filter(d => d.id !== docId);
+            this.renderDocuments();
+            showToast('删除成功');
+        } catch (err) {
+            showToast('删除失败', 'error');
+        }
+    }
+
+    async bindByNaming() {
+        const btn = document.querySelector('[onclick="app.bindByNaming()"]');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '绑定中...';
+        }
+
+        const API_BASE = `${window.location.origin}/api`;
+        try {
+            const resp = await fetch(`${API_BASE}/images/bind-by-naming`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            const data = await resp.json();
+
+            showToast(data.message || '绑定完成');
+            this.loadImages();
+        } catch (err) {
+            showToast('绑定失败', 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '🔗 自动绑定';
+            }
+        }
+    }
+
+    async handleImageFiles(files) {
+        if (!this.currentImageProductId) {
+            showToast('请先选择产品', 'error');
+            return;
+        }
+
+        const progress = document.getElementById('imageProgress');
+        const progressBar = document.getElementById('imageProgressBar');
+        if (progress) progress.style.display = 'block';
+
+        const API_BASE = `${window.location.origin}/api`;
+        let successCount = 0;
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('image_type', this.detectImageType(file.name));
+
+            try {
+                const resp = await fetch(`${API_BASE}/images/${this.currentImageProductId}/images`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${this.token}` },
+                    body: formData
+                });
+
+                if (resp.ok) {
+                    const data = await resp.json();
+                    this.currentImages.push(data);
+                    successCount++;
+                }
+            } catch (err) {
+                console.error('上传失败:', err);
+            }
+
+            if (progressBar) {
+                progressBar.style.width = ((i + 1) / files.length * 100) + '%';
+            }
+        }
+
+        if (progress) progress.style.display = 'none';
+        if (progressBar) progressBar.style.width = '0%';
+
+        this.renderImages();
+        showToast(`成功上传 ${successCount} 张图片`);
+    }
+
+    async handleDocumentFiles(files) {
+        if (!this.currentImageProductId) {
+            showToast('请先选择产品', 'error');
+            return;
+        }
+
+        const progress = document.getElementById('documentProgress');
+        const progressBar = document.getElementById('documentProgressBar');
+        if (progress) progress.style.display = 'block';
+
+        let successCount = 0;
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const formData = new FormData();
+            formData.append('document', file);
+            formData.append('title', file.name);
+            formData.append('doc_type', this.detectDocumentType(file.name));
+
+            try {
+                const resp = await productsAPI.uploadDocument(this.currentImageProductId, formData, this.token);
+                if (resp.id) {
+                    this.currentDocuments.push(resp);
+                    successCount++;
+                }
+            } catch (err) {
+                console.error('上传文档失败:', err);
+            }
+
+            if (progressBar) {
+                progressBar.style.width = ((i + 1) / files.length * 100) + '%';
+            }
+        }
+
+        if (progress) progress.style.display = 'none';
+        if (progressBar) progressBar.style.width = '0%';
+
+        this.renderDocuments();
+        showToast(`成功上传 ${successCount} 个文档`);
+    }
+
+    async linkLocalDocument() {
+        const productId = this.currentImageProductId;
+        if (!productId) {
+            showToast('请先选择产品', 'error');
+            return;
+        }
+
+        const title = document.getElementById('localDocTitle').value.trim();
+        const filePath = document.getElementById('localDocPath').value.trim();
+        const docType = document.getElementById('localDocType').value;
+
+        if (!title) {
+            showToast('请输入文档标题', 'error');
+            return;
+        }
+        if (!filePath) {
+            showToast('请输入文件路径或URL', 'error');
+            return;
+        }
+
+        try {
+            const resp = await productsAPI.linkDocument(productId, {
+                title,
+                file_path: filePath,
+                doc_type: docType
+            }, this.token);
+
+            if (resp.id) {
+                this.currentDocuments.push(resp);
+                this.renderDocuments();
+                document.getElementById('localDocTitle').value = '';
+                document.getElementById('localDocPath').value = '';
+                showToast('链接添加成功');
+            }
+        } catch (err) {
+            showToast('添加链接失败', 'error');
+        }
+    }
+
+    detectImageType(filename) {
+        const name = filename.toLowerCase();
+        if (name.includes('main') || name.includes('hero') || name.includes('primary')) return 'main';
+        if (name.includes('dim') || name.includes('size') || name.includes('dimension')) return 'dimension';
+        if (name.includes('banner')) return 'banner';
+        return 'detail';
+    }
+
+    detectDocumentType(filename) {
+        const name = filename.toLowerCase();
+        if (name.includes('.pdf')) return 'pdf';
+        if (name.includes('.mp4') || name.includes('.webm') || name.includes('.avi')) return 'video';
+        if (name.includes('manual') || name.includes('说明书') || name.includes('guide')) return 'manual';
+        if (name.includes('spec') || name.includes('规格')) return 'spec';
+        return 'other';
+    }
+
+    // ========== 图标管理方法 ==========
+    
+    allIcons = [];
+    selectedIcon = null;
+
+    switchSettingsSubTab(tab) {
+        document.getElementById('settingsSystemSection').classList.toggle('hidden', tab !== 'system');
+        document.getElementById('settingsIconsSection').classList.toggle('hidden', tab !== 'icons');
+        document.getElementById('settingsSubTabSystem').className = tab === 'system' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
+        document.getElementById('settingsSubTabIcons').className = tab === 'icons' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
+        
+        if (tab === 'icons' && this.allIcons.length === 0) {
+            this.loadIcons();
+            this.loadIconCategories();
+        }
+    }
+
+    async loadIcons() {
+        try {
+            const data = await iconsAPI.getAll(this.token);
+            this.allIcons = data.icons || [];
+            this.renderIconsGrid(this.allIcons);
+        } catch (err) {
+            console.error('加载图标失败:', err);
+            document.getElementById('iconsGrid').innerHTML = '<div style="grid-column:1/-1;text-center;color:#ef4444;padding:40px;">加载失败，请检查网络连接</div>';
+        }
+    }
+
+    async loadIconCategories() {
+        try {
+            const data = await iconsAPI.getCategories(this.token);
+            const select = document.getElementById('iconCategoryFilter');
+            select.innerHTML = '<option value="">全部分类</option>';
+            
+            (data.categories || []).forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.id;
+                opt.textContent = cat.name;
+                select.appendChild(opt);
+            });
+        } catch (err) {
+            console.error('加载分类失败:', err);
+        }
+    }
+
+    renderIconsGrid(icons) {
+        const grid = document.getElementById('iconsGrid');
+        
+        if (!icons.length) {
+            grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#94a3b8;padding:40px;">没有找到匹配的图标</div>';
+            return;
+        }
+
+        grid.innerHTML = icons.map(icon => `
+            <div class="icon-card" onclick="app.selectIcon('${icon.id}')" style="background:#fff;border:2px solid ${this.selectedIcon === icon.id ? '#3b82f6' : '#e5e7eb'};border-radius:10px;padding:16px;text-align:center;cursor:pointer;transition:all 0.2s ease;">
+                <div style="width:64px;height:64px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;background:#f8fafc;border-radius:8px;">
+                    <img src="${icon.url}" alt="${icon.name}" style="width:48px;height:48px;" onerror="this.style.display='none';this.parentElement.innerHTML='<span style=\\'font-size:24px;\\'>🎨</span>'">
+                </div>
+                <div style="font-size:14px;font-weight:600;color:#111827;margin-bottom:4px;">${icon.name}</div>
+                <div style="font-size:12px;color:#6b7280;">${icon.nameEn}</div>
+                ${icon.tags && icon.tags.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-top:8px;">${icon.tags.slice(0, 3).map(t => `<span style="font-size:10px;background:#eff6ff;color:#2563eb;padding:2px 6px;border-radius:4px;">${t}</span>`).join('')}</div>` : ''}
+            </div>
+        `).join('');
+    }
+
+    selectIcon(iconId) {
+        this.selectedIcon = iconId;
+        const icon = this.allIcons.find(i => i.id === iconId);
+        
+        if (!icon) return;
+
+        // 更新选中状态
+        this.renderIconsGrid(
+            document.getElementById('iconSearchInput').value 
+                ? this.allIcons.filter(i => i.name.toLowerCase().includes(document.getElementById('iconSearchInput').value.toLowerCase()) || i.nameEn.toLowerCase().includes(document.getElementById('iconSearchInput').value.toLowerCase()))
+                : this.allIcons
+        );
+
+        // 显示详情面板
+        const panel = document.getElementById('iconDetailPanel');
+        panel.style.display = 'block';
+
+        document.getElementById('iconPreviewLarge').innerHTML = `<img src="${icon.url}" alt="${icon.name}" style="width:80px;height:80px;">`;
+        document.getElementById('iconDetailName').textContent = icon.name;
+        document.getElementById('iconDetailNameEn').textContent = icon.nameEn;
+        document.getElementById('iconDetailDesc').textContent = icon.description || '';
+        document.getElementById('iconDetailTags').innerHTML = (icon.tags || []).map(t => 
+            `<span style="font-size:11px;background:#dbeafe;color:#1d4ed8;padding:4px 8px;border-radius:4px;">${t}</span>`
+        ).join('');
+    }
+
+    searchIcons(query) {
+        if (!query) {
+            this.renderIconsGrid(this.allIcons);
+            return;
+        }
+        const q = query.toLowerCase();
+        const filtered = this.allIcons.filter(icon =>
+            icon.name.toLowerCase().includes(q) ||
+            icon.nameEn.toLowerCase().includes(q) ||
+            (icon.tags && icon.tags.some(t => t.toLowerCase().includes(q)))
+        );
+        this.renderIconsGrid(filtered);
+    }
+
+    filterIconsByCategory(categoryId) {
+        if (!categoryId) {
+            this.renderIconsGrid(this.allIcons);
+            document.getElementById('iconCategoryInfo').style.display = 'none';
+            return;
+        }
+
+        const filtered = this.allIcons.filter(icon => icon.category === categoryId);
+        this.renderIconsGrid(filtered);
+
+        // 显示分类信息
+        const catInfo = document.getElementById('iconCategoryInfo');
+        catInfo.style.display = 'block';
+        document.getElementById('iconCategoryName').textContent = filtered[0]?.category || categoryId;
+    }
+
+    copyIconCode() {
+        if (!this.selectedIcon) return;
+        const code = `{{icon:${this.allIcons.find(i=>i.id===this.selectedIcon)?.category}:${this.selectedIcon}}}`;
+        navigator.clipboard.writeText(code).then(() => {
+            showToast('引用代码已复制到剪贴板');
+        });
+    }
+
+    useIconInTemplate() {
+        if (!this.selectedIcon) return;
+        showToast(`图标 ${this.selectedIcon} 已准备用于模板`);
+    }
+
+    // ========== CSV导出功能 ==========
+    async exportFullCsv() {
+        const API_BASE = `${window.location.origin}/api`;
+        showToast('正在导出完整数据...');
+        try {
+            const response = await fetch(`${API_BASE}/export/full/csv`, {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            if (!response.ok) throw new Error('导出失败');
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `products_full_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('导出成功');
+        } catch (err) {
+            showToast('导出失败: ' + err.message, 'error');
+        }
+    }
+
+    async exportSimpleCsv() {
+        const API_BASE = `${window.location.origin}/api`;
+        showToast('正在导出基础数据...');
+        try {
+            const response = await fetch(`${API_BASE}/export/csv`, {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            if (!response.ok) throw new Error('导出失败');
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `products_basic_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('导出成功');
+        } catch (err) {
+            showToast('导出失败: ' + err.message, 'error');
+        }
+    }
+
+    // ============ 从图片添加产品功能 ============
+    imageToProductFiles = [];
+    imageToProductData = [];
+
+    handleImageToProductFiles(files) {
+        if (!files || files.length === 0) return;
+
+        const uploadArea = document.getElementById('imageToProductUploadArea');
+        const progressContainer = document.getElementById('imageToProductProgress');
+        const progressBar = document.getElementById('imageToProductProgressBar');
+
+        const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        const validFiles = Array.from(files).filter(f => validTypes.includes(f.type));
+
+        if (validFiles.length === 0) {
+            showToast('请上传 JPG/PNG/GIF/WebP 格式的图片', 'error');
+            return;
+        }
+
+        // 显示进度条
+        progressContainer.style.display = 'block';
+        progressBar.style.width = '0%';
+
+        // 清空预览网格，添加新的预览
+        const previewGrid = document.getElementById('imageToProductPreviewGrid');
+        previewGrid.innerHTML = '';
+
+        let processed = 0;
+
+        validFiles.forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imgData = {
+                    file: file,
+                    dataUrl: e.target.result,
+                    name: file.name,
+                    size: file.size
+                };
+                this.imageToProductFiles.push(imgData);
+
+                // 添加预览卡片
+                const card = document.createElement('div');
+                card.className = 'image-item';
+                card.innerHTML = `
+                    <img src="${e.target.result}" alt="${file.name}">
+                    <button class="delete-btn" onclick="app.removeImageToProductFile(${index})">×</button>
+                    <div class="image-info">${file.name}</div>
+                `;
+                previewGrid.appendChild(card);
+
+                processed++;
+                progressBar.style.width = `${(processed / validFiles.length) * 100}%`;
+
+                if (processed === validFiles.length) {
+                    setTimeout(() => {
+                        progressContainer.style.display = 'none';
+                        showToast(`已上传 ${validFiles.length} 张图片`);
+                        this.updateImageToProductStatus();
+                    }, 500);
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    removeImageToProductFile(index) {
+        this.imageToProductFiles.splice(index, 1);
+        this.renderImageToProductPreview();
+        this.updateImageToProductStatus();
+    }
+
+    renderImageToProductPreview() {
+        const previewGrid = document.getElementById('imageToProductPreviewGrid');
+        if (this.imageToProductFiles.length === 0) {
+            previewGrid.innerHTML = '<p style="color: #999; text-align: center; grid-column: 1/-1;">请上传产品图片</p>';
+            return;
+        }
+
+        previewGrid.innerHTML = '';
+        this.imageToProductFiles.forEach((imgData, index) => {
+            const card = document.createElement('div');
+            card.className = 'image-item';
+            card.innerHTML = `
+                <img src="${imgData.dataUrl}" alt="${imgData.name}">
+                <button class="delete-btn" onclick="app.removeImageToProductFile(${index})">×</button>
+                <div class="image-info">${imgData.name}</div>
+            `;
+            previewGrid.appendChild(card);
+        });
+    }
+
+    updateImageToProductStatus() {
+        const statusEl = document.getElementById('imageToProductStatus');
+        const count = this.imageToProductFiles.length;
+        if (count === 0) {
+            statusEl.textContent = '';
+        } else {
+            statusEl.textContent = `已上传 ${count} 张图片`;
+        }
+    }
+
+    async startImageToProductProcess() {
+        if (this.imageToProductFiles.length === 0) {
+            showToast('请先上传产品图片', 'error');
+            return;
+        }
+
+        const statusEl = document.getElementById('imageToProductStatus');
+        const ocrResultEl = document.getElementById('imageToProductOcrResult');
+        const generatedInfoEl = document.getElementById('imageToProductGeneratedInfo');
+
+        statusEl.textContent = '正在识别图片内容...';
+        ocrResultEl.innerHTML = '<span style="color: #3b82f6;">正在处理图片...</span>';
+        generatedInfoEl.innerHTML = '<div style="color: #94a3b8;">等待处理...</div>';
+
+        try {
+            // 构建多模态消息 - 图片通过 base64 传递
+            const imagesBase64 = this.imageToProductFiles.map(f => f.dataUrl.split(',')[1]);
+
+            // 构建包含图片的消息
+            const message = `请仔细分析这些产品图片，识别图片中的所有文字内容：
+1. 产品型号、名称、品牌
+2. 规格参数、技术数据
+3. 包装信息、配件清单
+4. 尺寸、重量等物理参数
+5. 其他任何可见的文字
+
+识别后，根据这些信息生成一个完整的产品JSON（只返回JSON，不要其他内容）：
+{
+  "sku": "产品型号",
+  "name": "产品名称",
+  "subtitle": "产品副标题",
+  "price": 价格数字,
+  "currency": "USD",
+  "status": "draft",
+  "highlights": [{"key": "卖点标题", "value": "卖点值"}],
+  "specs": [{"label": "规格名称", "value": "规格值", "unit": "单位"}],
+  "accessories": [{"name": "配件名称", "quantity": 1}],
+  "features": [{"title": "功能标题", "description": "功能描述"}],
+  "dimensions": [{"label": "尺寸名称", "value": "尺寸值", "unit": "单位"}]
+}`;
+
+            const response = await fetch('/api/agent/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({
+                    message: message,
+                    images: imagesBase64
+                })
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || '处理失败');
+            }
+
+            const data = await response.json();
+            const resultText = data.response || data.message || data.content || '';
+
+            // 显示识别结果
+            ocrResultEl.innerHTML = `<pre style="white-space: pre-wrap; font-size: 12px; line-height: 1.5;">${resultText}</pre>`;
+
+            // 尝试从结果中提取JSON
+            let jsonText = resultText;
+            jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+            let productInfo;
+            try {
+                // 尝试直接解析
+                productInfo = JSON.parse(jsonText);
+            } catch (parseError) {
+                // 尝试提取JSON部分
+                const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    productInfo = JSON.parse(jsonMatch[0]);
+                } else {
+                    throw new Error('无法从AI响应中提取产品JSON');
+                }
+            }
+
+            // 存储生成的产品信息
+            this.imageToProductData.productInfo = productInfo;
+
+            // 显示生成的产品信息
+            generatedInfoEl.innerHTML = `
+                <div style="margin-bottom: 8px;"><strong>SKU:</strong> ${productInfo.sku || '无'}</div>
+                <div style="margin-bottom: 8px;"><strong>名称:</strong> ${productInfo.name || '无'}</div>
+                <div style="margin-bottom: 8px;"><strong>副标题:</strong> ${productInfo.subtitle || '无'}</div>
+                <div style="margin-bottom: 8px;"><strong>价格:</strong> ${productInfo.currency || 'USD'} ${productInfo.price || '无'}</div>
+                <div style="margin-top: 12px; padding: 8px; background: white; border-radius: 4px;">
+                    <strong>核心卖点 (${(productInfo.highlights || []).length}条)</strong>
+                    <div style="margin-top: 4px; font-size: 12px;">
+                        ${(productInfo.highlights || []).map(h => `• ${h.key}: ${h.value}`).join('<br>') || '无'}
+                    </div>
+                </div>
+                <div style="margin-top: 8px; padding: 8px; background: white; border-radius: 4px;">
+                    <strong>产品规格 (${(productInfo.specs || []).length}条)</strong>
+                    <div style="margin-top: 4px; font-size: 12px;">
+                        ${(productInfo.specs || []).map(s => `• ${s.label}: ${s.value} ${s.unit || ''}`).join('<br>') || '无'}
+                    </div>
+                </div>
+                <div style="margin-top: 8px; padding: 8px; background: white; border-radius: 4px;">
+                    <strong>包装清单 (${(productInfo.accessories || []).length}条)</strong>
+                    <div style="margin-top: 4px; font-size: 12px;">
+                        ${(productInfo.accessories || []).map(a => `• ${a.name} x${a.quantity || 1}`).join('<br>') || '无'}
+                    </div>
+                </div>
+                <div style="margin-top: 8px; padding: 8px; background: white; border-radius: 4px;">
+                    <strong>功能亮点 (${(productInfo.features || []).length}条)</strong>
+                    <div style="margin-top: 4px; font-size: 12px;">
+                        ${(productInfo.features || []).map(f => `• ${f.title}`).join('<br>') || '无'}
+                    </div>
+                </div>
+                <div style="margin-top: 8px; padding: 8px; background: white; border-radius: 4px;">
+                    <strong>适配尺寸 (${(productInfo.dimensions || []).length}条)</strong>
+                    <div style="margin-top: 4px; font-size: 12px;">
+                        ${(productInfo.dimensions || []).map(d => `• ${d.label}: ${d.value} ${d.unit || ''}`).join('<br>') || '无'}
+                    </div>
+                </div>
+            `;
+
+            statusEl.textContent = '产品信息已生成，请确认后添加';
+            showToast('产品信息已生成');
+
+        } catch (err) {
+            console.error('处理失败:', err);
+            statusEl.textContent = '处理失败';
+            ocrResultEl.innerHTML = `<span style="color: #ef4444;">处理失败: ${err.message}</span>`;
+            showToast('处理失败: ' + err.message, 'error');
+        }
+    }
+
+    async confirmAndCreateProduct() {
+        if (!this.imageToProductData.productInfo) {
+            showToast('请先生成产品信息', 'error');
+            return;
+        }
+
+        const productInfo = this.imageToProductData.productInfo;
+
+        try {
+            // 调用产品创建API
+            const createResponse = await fetch('/api/products/create-from-ocr', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({
+                    product: productInfo
+                })
+            });
+
+            if (!createResponse.ok) {
+                const errData = await createResponse.json();
+                throw new Error(errData.error || '创建产品失败');
+            }
+
+            const createData = await createResponse.json();
+            const productId = createData.product_id;
+
+            if (!productId) {
+                throw new Error('无法获取产品ID');
+            }
+
+            showToast('产品已创建，正在绑定图片...');
+
+            // 绑定图片
+            await this.bindImagesToProduct(productId);
+
+        } catch (err) {
+            console.error('创建产品失败:', err);
+            showToast('创建产品失败: ' + err.message, 'error');
+        }
+    }
+
+    async bindImagesToProduct(productId) {
+        if (this.imageToProductFiles.length === 0) {
+            showToast('产品已创建成功！但没有图片需要绑定。', 'success');
+            this.resetImageToProduct();
+            return;
+        }
+
+        try {
+            // 上传并绑定图片
+            for (let i = 0; i < this.imageToProductFiles.length; i++) {
+                const imgData = this.imageToProductFiles[i];
+                const formData = new FormData();
+                formData.append('file', imgData.file);
+                formData.append('productId', productId);
+
+                // 根据序号判断图片类型
+                let imageType = 'detail';
+                if (i === 0) imageType = 'main';
+                else if (imgData.name.toLowerCase().includes('dimension') || imgData.name.toLowerCase().includes('dim')) {
+                    imageType = 'dimension';
+                } else if (imgData.name.toLowerCase().includes('banner')) {
+                    imageType = 'banner';
+                }
+                formData.append('imageType', imageType);
+
+                const uploadResponse = await fetch('/api/images/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`
+                    },
+                    body: formData
+                });
+
+                if (!uploadResponse.ok) {
+                    console.error(`上传图片失败: ${imgData.name}`);
+                }
+            }
+
+            showToast('产品创建成功，图片已绑定！', 'success');
+            this.resetImageToProduct();
+
+            // 刷新产品列表
+            this.loadProducts();
+
+        } catch (err) {
+            console.error('绑定图片失败:', err);
+            showToast('产品已创建，但图片绑定失败: ' + err.message, 'warning');
+            this.resetImageToProduct();
+        }
+    }
+
+    async regenerateProductInfo() {
+        // 直接重新调用 startImageToProductProcess
+        await this.startImageToProductProcess();
+    }
+
+    resetImageToProduct() {
+        this.imageToProductFiles = [];
+        this.imageToProductData = [];
+        this.renderImageToProductPreview();
+        document.getElementById('imageToProductOcrResult').innerHTML = '<span style="color: #94a3b8;">等待上传图片...</span>';
+        document.getElementById('imageToProductGeneratedInfo').innerHTML = '<div style="color: #94a3b8;">等待处理...</div>';
+        this.updateImageToProductStatus();
+    }
+}
+
+// 创建全局应用实例
+window.app = new App();
+
+// 导出供其他模块使用
+export default App;

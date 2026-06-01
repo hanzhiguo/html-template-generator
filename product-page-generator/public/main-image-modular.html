@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>主图模板生成器 (模块化版)</title>
+<script src="https://unpkg.com/konva@9/konva.min.js"></script>
+<link rel="stylesheet" href="js/main-image/ui/styles.css">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="index.html">← 返回首页</a>
+    <h1>📐 主图模板生成器</h1>
+  </nav>
+  
+  <div class="container">
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <h3>💾 模板管理</h3>
+        <div style="margin-bottom:8px;">
+          <input type="text" id="templateName" placeholder="输入模板名称">
+        </div>
+        <button class="btn btn-primary btn-block" id="saveTemplateBtn">💾 保存模板</button>
+        <div id="templateList" style="margin-top:10px;max-height:150px;overflow-y:auto;"></div>
+      </div>
+      
+      <div class="sidebar-section">
+        <h3>模板 (图片数量)</h3>
+        <div class="template-grid" id="templateGrid">
+          <div class="template-item active" data-count="1">1</div>
+          <div class="template-item" data-count="2">2</div>
+          <div class="template-item" data-count="3">3</div>
+          <div class="template-item" data-count="4">4</div>
+          <div class="template-item" data-count="5">5</div>
+          <div class="template-item" data-count="6">6</div>
+          <div class="template-item" data-count="7">7</div>
+          <div class="template-item" data-count="8">8</div>
+          <div class="template-item" data-count="9">9</div>
+        </div>
+      </div>
+      
+      <div class="sidebar-section">
+        <h3>文字位置</h3>
+        <div class="preset-grid" id="presetGrid">
+          <div class="preset-item" data-preset="topLeft">↖</div>
+          <div class="preset-item" data-preset="top">↑</div>
+          <div class="preset-item" data-preset="topRight">↗</div>
+          <div class="preset-item" data-preset="left">←</div>
+          <div class="preset-item active" data-preset="center">●</div>
+          <div class="preset-item" data-preset="right">→</div>
+          <div class="preset-item" data-preset="bottomLeft">↙</div>
+          <div class="preset-item" data-preset="bottom">↓</div>
+          <div class="preset-item" data-preset="bottomRight">↘</div>
+        </div>
+      </div>
+      
+      <div class="sidebar-section">
+        <h3>文字设置</h3>
+        <div class="form-group">
+          <label>主标题</label>
+          <input type="text" id="mainTitle" placeholder="输入主标题">
+        </div>
+        <div class="form-group">
+          <label>副标题</label>
+          <input type="text" id="subTitle" placeholder="输入副标题">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>主标题颜色</label>
+            <div class="color-row">
+              <input type="color" id="titleColor" value="#ffffff">
+              <input type="text" id="titleColorText" value="#ffffff">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>副标题颜色</label>
+            <div class="color-row">
+              <input type="color" id="subtitleColor" value="#ffffff">
+              <input type="text" id="subtitleColorText" value="#ffffff">
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>背景颜色</label>
+          <div class="color-row">
+            <input type="color" id="bgColor" value="#f5f5f5">
+            <input type="text" id="bgColorText" value="#f5f5f5">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>标题大小: <span id="titleSizeVal">48</span>px</label>
+          <input type="range" id="titleSize" min="24" max="120" value="48">
+        </div>
+        <div class="form-row">
+          <label><input type="checkbox" id="shadow" checked> 阴影</label>
+          <label><input type="checkbox" id="stroke"> 描边</label>
+          <label><input type="checkbox" id="bold" checked> 加粗</label>
+          <label><input type="checkbox" id="textBg"> 背景</label>
+        </div>
+      </div>
+      
+      <div class="sidebar-section">
+        <h3>图片设置</h3>
+        <div class="form-group">
+          <label>图片间距: <span id="imageGapVal">4</span>px</label>
+          <input type="range" id="imageGap" min="0" max="20" value="4">
+        </div>
+        <div class="form-group">
+          <label>图片圆角: <span id="imageRadiusVal">0</span>px</label>
+          <input type="range" id="imageRadius" min="0" max="100" value="0">
+        </div>
+      </div>
+      
+      <div class="sidebar-section">
+        <h3>📷 上传图片</h3>
+        <div class="upload-zone" id="uploadZone">
+          <div class="upload-icon">📁</div>
+          <div class="upload-text">点击或拖拽上传图片</div>
+        </div>
+        <input type="file" id="fileInput" multiple accept="image/*">
+        <div class="image-list" id="imageList"></div>
+        <div class="batch-buttons" style="margin-top:8px;">
+          <button class="btn" id="selectAllBtn">全选</button>
+          <button class="btn" id="deselectAllBtn">取消全选</button>
+        </div>
+        <div class="batch-scale-panel" id="batchScalePanel" style="display:none;">
+          <h4>批量缩放</h4>
+          <div class="batch-scale-row">
+            <input type="range" id="batchScale" min="0.5" max="2" step="0.1" value="1">
+            <input type="number" id="batchScaleNum" value="1" step="0.1" min="0.5" max="2">
+          </div>
+          <div class="batch-buttons">
+            <button class="btn btn-primary" id="applyBatchBtn">应用</button>
+            <button class="btn" id="resetBatchBtn">重置</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="main-content">
+      <div class="preview-container">
+        <div class="preview-title">预览 (720×720)</div>
+        <div class="canvas-wrapper">
+          <canvas id="previewCanvas" width="1024" height="1024"></canvas>
+          <div id="dragOverlay" class="konva-overlay" style="width:720px;height:720px;"></div>
+        </div>
+        <div class="export-actions">
+          <button class="btn btn-primary" id="exportPngBtn">📥 导出 PNG</button>
+          <button class="btn btn-success" id="exportJpgBtn">📥 导出 JPG</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script type="module" src="js/main-image/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 尺寸标注工具</title>
+<script src="https://unpkg.com/konva@9/konva.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; height: 100vh; overflow: hidden; }
+  
+  .navbar { display: flex; align-items: center; gap: 16px; padding: 10px 24px; background: #fff; border-bottom: 1px solid #e5e7eb; }
+  .navbar a { color: #3b82f6; text-decoration: none; font-size: 13px; }
+  .navbar h1 { font-size: 16px; font-weight: 700; }
+  .navbar .nav-links { margin-left: auto; display: flex; gap: 12px; }
+  .navbar .nav-links a { padding: 6px 12px; border-radius: 6px; font-size: 12px; transition: all 0.2s; }
+  .navbar .nav-links a:hover { background: #f3f4f6; }
+
+  .workspace { display: flex; height: calc(100vh - 48px); }
+
+  .toolbar { width: 56px; background: #fff; border-right: 1px solid #e5e7eb; padding: 12px 8px; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+  .tool-btn { width: 40px; height: 40px; border-radius: 8px; border: 1px solid transparent; background: transparent; cursor: pointer; font-size: 18px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; position: relative; }
+  .tool-btn:hover { background: #f3f4f6; }
+  .tool-btn.active { background: #dbeafe; border-color: #3b82f6; }
+  .tool-btn .tooltip { position: absolute; left: 52px; background: #1f2937; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 100; }
+  .tool-btn:hover .tooltip { opacity: 1; }
+  .tool-sep { width: 32px; height: 1px; background: #e5e7eb; margin: 4px 0; }
+
+  .canvas-area { flex: 1; display: flex; align-items: center; justify-content: center; background: #e8eaed; overflow: hidden; position: relative; }
+  #konvaContainer { background: #fff; box-shadow: 0 4px 24px rgba(0,0,0,0.12); }
+  .canvas-placeholder { text-align: center; color: #9ca3af; }
+  .canvas-placeholder .icon { font-size: 64px; margin-bottom: 16px; }
+  .canvas-placeholder p { font-size: 14px; margin-bottom: 8px; }
+  .canvas-placeholder .hint { font-size: 12px; color: #d1d5db; }
+
+  .panel { width: 300px; background: #fff; border-left: 1px solid #e5e7eb; display: flex; flex-direction: column; overflow: hidden; }
+  .panel-header { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; font-size: 14px; font-weight: 600; }
+  .panel-body { flex: 1; overflow-y: auto; padding: 16px; }
+
+  .panel-section { margin-bottom: 20px; }
+  .panel-section h4 { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; font-weight: 600; }
+  
+  .upload-zone { border: 2px dashed #d1d5db; border-radius: 10px; padding: 24px; text-align: center; cursor: pointer; transition: all 0.2s; }
+  .upload-zone:hover { border-color: #3b82f6; background: #eff6ff; }
+  .upload-zone .plus { font-size: 28px; color: #9ca3af; margin-bottom: 6px; }
+  .upload-zone p { font-size: 12px; color: #9ca3af; }
+
+  .dimension-list { display: flex; flex-direction: column; gap: 8px; }
+  .dim-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; background: #f9fafb; border: 1px solid #e5e7eb; cursor: pointer; transition: all 0.15s; font-size: 12px; }
+  .dim-item:hover { border-color: #3b82f6; }
+  .dim-item.selected { border-color: #3b82f6; background: #eff6ff; }
+  .dim-item .dim-icon { width: 28px; height: 28px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .dim-item .dim-icon.h { background: #fef3c7; }
+  .dim-item .dim-icon.v { background: #dbeafe; }
+  .dim-item .dim-info { flex: 1; }
+  .dim-item .dim-label { font-weight: 600; }
+  .dim-item .dim-value { font-size: 11px; color: #6b7280; }
+  .dim-item .dim-delete { color: #ef4444; cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
+  .dim-item .dim-delete:hover { background: #fef2f2; }
+
+  .form-group { margin-bottom: 10px; }
+  .form-group label { display: block; font-size: 11px; color: #6b7280; margin-bottom: 4px; font-weight: 500; }
+  .form-group input[type="number"], .form-group input[type="text"], .form-group select { width: 100%; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; }
+  .form-group input[type="number"]:focus, .form-group input[type="text"]:focus, .form-group select:focus { outline: none; border-color: #3b82f6; }
+  .form-row { display: flex; gap: 8px; }
+  .form-row .form-group { flex: 1; }
+
+  .color-row { display: flex; align-items: center; gap: 6px; }
+  .color-row input[type="color"] { width: 32px; height: 32px; border: none; border-radius: 6px; cursor: pointer; }
+  .color-row input[type="text"] { flex: 1; }
+  
+  .btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-primary { background: linear-gradient(135deg, #1e40af, #3b82f6); color: #fff; }
+  .btn-primary:hover { box-shadow: 0 4px 12px rgba(30,64,175,0.3); }
+  .btn-secondary { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+  .btn-secondary:hover { background: #e5e7eb; }
+  .btn-block { width: 100%; }
+  .btn-sm { padding: 5px 10px; font-size: 11px; }
+
+  .range-row { display: flex; align-items: center; gap: 8px; }
+  .range-row input[type="range"] { flex: 1; height: 4px; }
+  .range-row span { min-width: 36px; text-align: right; font-size: 11px; color: #6b7280; }
+
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); padding: 12px 24px; border-radius: 8px; font-size: 13px; font-weight: 500; z-index: 9999; animation: toastIn 0.3s; }
+  .toast.success { background: #10b981; color: #fff; }
+  .toast.error { background: #ef4444; color: #fff; }
+  @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+  .shortcut-hint { font-size: 10px; color: #9ca3af; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html">← 返回首页</a>
+  <a href="main-image-template.html">← 主图模板</a>
+  <h1>📏 AI 尺寸标注工具</h1>
+  <div class="nav-links">
+    <a href="main-image-template.html">主图模板</a>
+    <a href="product-page.html">产品详情</a>
+  </div>
+</nav>
+
+<div class="workspace">
+  <div class="toolbar" id="toolbar">
+    <button class="tool-btn active" data-tool="select" id="toolSelect">
+      <span>↖</span><span class="tooltip">选择/移动 V</span>
+    </button>
+    <button class="tool-btn" data-tool="horiz" id="toolHoriz">
+      <span>↔</span><span class="tooltip">水平标注 H</span>
+    </button>
+    <button class="tool-btn" data-tool="vert" id="toolVert">
+      <span>↕</span><span class="tooltip">垂直标注 V</span>
+    </button>
+    <div class="tool-sep"></div>
+    <button class="tool-btn" data-tool="pan" id="toolPan">
+      <span>✋</span><span class="tooltip">平移画布 Space</span>
+    </button>
+    <button class="tool-btn" id="toolZoomFit">
+      <span>⊞</span><span class="tooltip">适应窗口</span>
+    </button>
+  </div>
+
+  <div class="canvas-area" id="canvasArea">
+    <div id="konvaContainer"></div>
+    <div class="canvas-placeholder" id="canvasPlaceholder" style="display:none;">
+      <div class="icon">📏</div>
+      <p>拖拽图片到此处开始标注</p>
+      <p class="hint">支持 JPG / PNG / WebP</p>
+    </div>
+  </div>
+
+  <div class="panel" id="panel">
+    <div class="panel-header" id="panelTitle">📋 属性面板</div>
+    <div class="panel-body" id="panelBody">
+
+      <div id="panelUpload" class="panel-section">
+        <h4>📷 上传产品图片</h4>
+        <div class="upload-zone" id="uploadZone">
+          <div class="plus">+</div>
+          <p>点击或拖拽上传</p>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" style="display:none;">
+        <div style="margin-top:10px;">
+          <button class="btn btn-secondary btn-block btn-sm" id="btnLoadDemo">使用演示图片</button>
+        </div>
+      </div>
+
+      <div id="panelDimensions" class="panel-section" style="display:none;">
+        <h4>📐 尺寸标注列表</h4>
+        <div class="dimension-list" id="dimensionList"></div>
+        <button class="btn btn-secondary btn-block btn-sm" style="margin-top:8px;" onclick="addDimensionFromPanel()">+ 添加标注</button>
+      </div>
+
+      <div id="panelStyle" class="panel-section" style="display:none;">
+        <h4>🎨 标注样式</h4>
+        <div class="form-group">
+          <label>线条颜色</label>
+          <div class="color-row">
+            <input type="color" id="styleLineColor" value="#ff6b6b">
+            <input type="text" id="styleLineColorText" value="#ff6b6b">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>线条粗细</label>
+          <div class="range-row">
+            <input type="range" id="styleLineWidth" min="1" max="8" value="2">
+            <span id="styleLineWidthVal">2px</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>箭头大小</label>
+          <div class="range-row">
+            <input type="range" id="styleArrowSize" min="6" max="20" value="10">
+            <span id="styleArrowSizeVal">10px</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>文字颜色</label>
+          <div class="color-row">
+            <input type="color" id="styleTextColor" value="#ff6b6b">
+            <input type="text" id="styleTextColorText" value="#ff6b6b">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>文字大小</label>
+          <div class="range-row">
+            <input type="range" id="styleFontSize" min="12" max="36" value="18">
+            <span id="styleFontSizeVal">18px</span>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-block btn-sm" onclick="applyStyleToAll()">应用到全部标注</button>
+      </div>
+
+      <div id="panelSelected" class="panel-section" style="display:none;">
+        <h4>✏️ 选中标注</h4>
+        <div class="form-group">
+          <label>标注数值</label>
+          <input type="text" id="selValue" placeholder="如: 45">
+        </div>
+        <div class="form-group">
+          <label>单位</label>
+          <select id="selUnit">
+            <option value="cm">cm</option>
+            <option value="mm">mm</option>
+            <option value="in">inch</option>
+            <option value="px">px</option>
+          </select>
+        </div>
+        <button class="btn btn-secondary btn-block btn-sm" style="color:#ef4444;" onclick="deleteSelected()">删除选中标注</button>
+        <p class="shortcut-hint">快捷键: Delete 删除 | 拖拽两端调整位置</p>
+      </div>
+
+      <div id="panelExport" class="panel-section" style="display:none;">
+        <h4>📤 导出</h4>
+        <div class="form-group">
+          <label>导出格式</label>
+          <select id="exportFormat">
+            <option value="png">PNG</option>
+            <option value="jpg">JPEG</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>缩放倍数</label>
+          <select id="exportScale">
+            <option value="1">1× (原始)</option>
+            <option value="2" selected>2× (高清)</option>
+            <option value="3">3× (超清)</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="exportImage()">📷 导出图片</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const dimColors = ['#ff6b6b', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+let dimColorIndex = 0;
+let dimensions = [];
+let selectedDimId = null;
+let currentTool = 'select';
+let stage = null;
+let imageLayer = null;
+let dimLayer = null;
+let konvaImage = null;
+let scale = 1;
+let originalImage = null;
+
+function initKonva() {
+  stage = new Konva.Stage({
+    container: 'konvaContainer',
+    width: 800,
+    height: 800
+  });
+  
+  imageLayer = new Konva.Layer();
+  dimLayer = new Konva.Layer();
+  
+  stage.add(imageLayer);
+  stage.add(dimLayer);
+
+  stage.on('click tap', (e) => {
+    if (e.target === stage || e.target === imageLayer) {
+      selectDimension(null);
+    }
+  });
+
+  document.getElementById('canvasArea').addEventListener('dragover', (e) => {
+    e.preventDefault();
+  });
+  document.getElementById('canvasArea').addEventListener('drop', (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) loadImage(file);
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (selectedDimId && document.activeElement === document.body) {
+        deleteSelected();
+      }
+    }
+    if (e.key === 'h' && !e.ctrlKey && !e.metaKey && document.activeElement === document.body) {
+      setTool('horiz');
+    }
+    if (e.key === 'v' && !e.ctrlKey && !e.metaKey && document.activeElement === document.body) {
+      setTool('vert');
+    }
+    if (e.key === ' ' && document.activeElement === document.body) {
+      setTool('pan');
+      e.preventDefault();
+    }
+  });
+
+  window.addEventListener('keyup', (e) => {
+    if (e.key === ' ') {
+      setTool('select');
+    }
+  });
+
+  updatePanelVisibility();
+}
+
+function setTool(tool) {
+  currentTool = tool;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('tool' + tool.charAt(0).toUpperCase() + tool.slice(1));
+  if (btn) btn.classList.add('active');
+  
+  if (tool === 'pan') {
+    stage.draggable(true);
+  } else {
+    stage.draggable(false);
+  }
+}
+
+function loadImage(fileOrUrl) {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    originalImage = img;
+    setupStageWithImage(img);
+    updatePanelVisibility();
+    showToast('图片已加载');
+  };
+  
+  if (typeof fileOrUrl === 'string') {
+    img.src = fileOrUrl;
+  } else {
+    const reader = new FileReader();
+    reader.onload = (e) => img.src = e.target.result;
+    reader.readAsDataURL(fileOrUrl);
+  }
+}
+
+function setupStageWithImage(img) {
+  const maxDim = 800;
+  const padding = 80;
+  const availableSize = maxDim - padding * 2;
+  
+  let w = img.width, h = img.height;
+  scale = Math.min(availableSize / w, availableSize / h, 1);
+  w = Math.round(w * scale);
+  h = Math.round(h * scale);
+  
+  stage.width(w + padding * 2);
+  stage.height(h + padding * 2);
+  stage.position({ x: 0, y: 0 });
+  
+  imageLayer.destroyChildren();
+  
+  imageLayer.add(new Konva.Rect({
+    x: 0, y: 0,
+    width: stage.width(),
+    height: stage.height(),
+    fill: '#ffffff'
+  }));
+  
+  konvaImage = new Konva.Image({
+    x: padding,
+    y: padding,
+    image: img,
+    width: w,
+    height: h
+  });
+  imageLayer.add(konvaImage);
+  imageLayer.draw();
+  
+  dimLayer.destroyChildren();
+  dimLayer.draw();
+  
+  dimensions = [];
+  selectedDimId = null;
+  updateDimensionList();
+  updatePanelVisibility();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initKonva();
+  
+  document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.tool === 'pan') return;
+      setTool(btn.dataset.tool);
+    });
+  });
+  
+  document.getElementById('toolPan').addEventListener('click', () => {
+    setTool(currentTool === 'pan' ? 'select' : 'pan');
+  });
+  
+  document.getElementById('toolZoomFit').addEventListener('click', () => {
+    if (originalImage) setupStageWithImage(originalImage);
+    stage.position({ x: 0, y: 0 });
+    stage.scale({ x: 1, y: 1 });
+  });
+
+  const uploadZone = document.getElementById('uploadZone');
+  const fileInput = document.getElementById('fileInput');
+  uploadZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files[0]) loadImage(e.target.files[0]);
+  });
+
+  document.getElementById('btnLoadDemo').addEventListener('click', () => {
+    const demoImg = document.querySelector('img[alt="product"]');
+    if (demoImg) {
+      loadImage(demoImg.src);
+    } else {
+      showToast('演示图片未找到，请上传图片', true);
+    }
+  });
+
+  document.getElementById('styleLineColor').addEventListener('input', (e) => {
+    document.getElementById('styleLineColorText').value = e.target.value;
+  });
+  document.getElementById('styleLineColorText').addEventListener('input', (e) => {
+    document.getElementById('styleLineColor').value = e.target.value;
+  });
+  document.getElementById('styleTextColor').addEventListener('input', (e) => {
+    document.getElementById('styleTextColorText').value = e.target.value;
+  });
+  document.getElementById('styleTextColorText').addEventListener('input', (e) => {
+    document.getElementById('styleTextColor').value = e.target.value;
+  });
+
+  const sliders = [
+    ['styleLineWidth', 'styleLineWidthVal'],
+    ['styleArrowSize', 'styleArrowSizeVal'],
+    ['styleFontSize', 'styleFontSizeVal']
+  ];
+  sliders.forEach(([id, valId]) => {
+    document.getElementById(id).addEventListener('input', (e) => {
+      document.getElementById(valId).textContent = e.target.value + 'px';
+    });
+  });
+
+  document.getElementById('selValue').addEventListener('input', (e) => {
+    if (selectedDimId) {
+      const dim = dimensions.find(d => d.id === selectedDimId);
+      if (dim) {
+        dim.value = e.target.value;
+        updateDimensionOnCanvas(dim);
+      }
+    }
+  });
+  document.getElementById('selUnit').addEventListener('change', (e) => {
+    if (selectedDimId) {
+      const dim = dimensions.find(d => d.id === selectedDimId);
+      if (dim) {
+        dim.unit = e.target.value;
+        updateDimensionOnCanvas(dim);
+      }
+    }
+  });
+
+  dimLayer.on('click tap', (e) => {
+    if (e.target === dimLayer && currentTool === 'select') {
+      selectDimension(null);
+    }
+  });
+
+  stage.on('mousedown touchstart', (e) => {
+    if (currentTool === 'horiz' || currentTool === 'vert') {
+      if (e.target !== stage && e.target !== imageLayer && e.target !== dimLayer) return;
+      
+      const pos = stage.getPointerPosition();
+      if (!pos) return;
+      
+      const isHoriz = currentTool === 'horiz';
+      const color = dimColors[dimColorIndex % dimColors.length];
+      dimColorIndex++;
+      
+      const id = 'dim_' + Date.now();
+      const length = isHoriz ? 200 : 200;
+      
+      const dim = {
+        id,
+        type: isHoriz ? 'horizontal' : 'vertical',
+        x1: pos.x - length / 2,
+        y1: isHoriz ? pos.y : pos.y - length / 2,
+        x2: pos.x + length / 2,
+        y2: isHoriz ? pos.y : pos.y + length / 2,
+        value: isHoriz ? '45' : '120',
+        unit: 'cm',
+        lineColor: color,
+        lineWidth: parseInt(document.getElementById('styleLineWidth').value),
+        arrowSize: parseInt(document.getElementById('styleArrowSize').value),
+        textColor: color,
+        fontSize: parseInt(document.getElementById('styleFontSize').value)
+      };
+      
+      dimensions.push(dim);
+      drawDimension(dim);
+      selectDimension(id);
+      updateDimensionList();
+      setTool('select');
+    }
+  });
+
+  stage.on('wheel', (e) => {
+    e.evt.preventDefault();
+    const oldScale = stage.scaleX();
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return;
+    
+    const mousePointTo = {
+      x: (pointer.x - stage.x()) / oldScale,
+      y: (pointer.y - stage.y()) / oldScale,
+    };
+    
+    const newScale = e.evt.deltaY > 0 ? oldScale * 0.9 : oldScale * 1.1;
+    const clampedScale = Math.max(0.2, Math.min(5, newScale));
+    stage.scale({ x: clampedScale, y: clampedScale });
+    
+    const newPos = {
+      x: pointer.x - mousePointTo.x * clampedScale,
+      y: pointer.y - mousePointTo.y * clampedScale,
+    };
+    stage.position(newPos);
+  });
+});
+
+function drawDimension(dim) {
+  removeDimensionFromCanvas(dim.id);
+  
+  const group = new Konva.Group({ id: dim.id, name: 'dimension' });
+  
+  let x1 = dim.x1, y1 = dim.y1, x2 = dim.x2, y2 = dim.y2;
+  const isHoriz = dim.type === 'horizontal';
+  const arrow = dim.arrowSize;
+  const lw = dim.lineWidth;
+  
+  const line = new Konva.Line({
+    points: [x1, y1, x2, y2],
+    stroke: dim.lineColor,
+    strokeWidth: lw,
+    lineCap: 'round',
+    name: 'line'
+  });
+
+  let arrowPath1, arrowPath2;
+  if (isHoriz) {
+    arrowPath1 = [x1, y1, x1 + arrow, y1 - arrow/2, x1 + arrow, y1 + arrow/2];
+    arrowPath2 = [x2, y2, x2 - arrow, y2 - arrow/2, x2 - arrow, y2 + arrow/2];
+  } else {
+    arrowPath1 = [x1, y1, x1 - arrow/2, y1 + arrow, x1 + arrow/2, y1 + arrow];
+    arrowPath2 = [x2, y2, x2 - arrow/2, y2 - arrow, x2 + arrow/2, y2 - arrow];
+  }
+
+  const arrow1 = new Konva.Line({
+    points: arrowPath1,
+    fill: dim.lineColor,
+    closed: true,
+    name: 'arrow'
+  });
+  const arrow2 = new Konva.Line({
+    points: arrowPath2,
+    fill: dim.lineColor,
+    closed: true,
+    name: 'arrow'
+  });
+
+  const midX = (x1 + x2) / 2;
+  const midY = (y1 + y2) / 2;
+  
+  const label = new Konva.Text({
+    x: midX,
+    y: midY,
+    text: `${dim.value}${dim.unit}`,
+    fontSize: dim.fontSize,
+    fontFamily: 'sans-serif',
+    fontStyle: 'bold',
+    fill: dim.textColor,
+    name: 'label'
+  });
+  
+  label.offsetX(label.width() / 2);
+  label.offsetY(label.height() / 2);
+  
+  if (isHoriz) {
+    label.y(midY - dim.fontSize - 4);
+  } else {
+    label.x(midX + dim.fontSize + 4);
+  }
+
+  const bgWidth = label.width() + 12;
+  const bgHeight = label.height() + 8;
+  const bg = new Konva.Rect({
+    x: label.x() - bgWidth / 2,
+    y: label.y() - bgHeight / 2,
+    width: bgWidth,
+    height: bgHeight,
+    fill: 'rgba(255,255,255,0.9)',
+    cornerRadius: 4,
+    name: 'labelBg'
+  });
+  
+  const anchor1 = createAnchor(x1, y1, dim, 'start');
+  const anchor2 = createAnchor(x2, y2, dim, 'end');
+
+  group.add(bg);
+  group.add(line);
+  group.add(arrow1);
+  group.add(arrow2);
+  group.add(label);
+  group.add(anchor1);
+  group.add(anchor2);
+
+  group.on('click tap', () => {
+    selectDimension(dim.id);
+  });
+
+  dimLayer.add(group);
+  dimLayer.draw();
+  
+  if (dim.id === selectedDimId) {
+    highlightSelectedOnLayer();
+  }
+}
+
+function createAnchor(x, y, dim, anchorType) {
+  const size = 10;
+  const rect = new Konva.Rect({
+    x: x - size / 2,
+    y: y - size / 2,
+    width: size,
+    height: size,
+    fill: '#ffffff',
+    stroke: dim.lineColor,
+    strokeWidth: 2,
+    cornerRadius: 2,
+    draggable: true,
+    name: 'anchor'
+  });
+
+  rect.on('dragmove', () => {
+    if (anchorType === 'start') {
+      dim.x1 = rect.x() + size / 2;
+      dim.y1 = rect.y() + size / 2;
+    } else {
+      dim.x2 = rect.x() + size / 2;
+      dim.y2 = rect.y() + size / 2;
+    }
+    updateDimensionOnCanvas(dim);
+  });
+
+  rect.on('mouseenter', () => {
+    document.body.style.cursor = 'grab';
+  });
+  rect.on('mouseleave', () => {
+    document.body.style.cursor = 'default';
+  });
+
+  return rect;
+}
+
+function updateDimensionOnCanvas(dim) {
+  const group = dimLayer.findOne('#' + dim.id);
+  if (!group) return;
+  
+  const x1 = dim.x1, y1 = dim.y1, x2 = dim.x2, y2 = dim.y2;
+  const isHoriz = dim.type === 'horizontal';
+  const arrow = dim.arrowSize;
+  
+  const line = group.findOne('.line');
+  if (line) line.points([x1, y1, x2, y2]);
+  
+  const arrows = group.find('.arrow');
+  if (arrows.length >= 2) {
+    if (isHoriz) {
+      arrows[0].points([x1, y1, x1 + arrow, y1 - arrow/2, x1 + arrow, y1 + arrow/2]);
+      arrows[1].points([x2, y2, x2 - arrow, y2 - arrow/2, x2 - arrow, y2 + arrow/2]);
+    } else {
+      arrows[0].points([x1, y1, x1 - arrow/2, y1 + arrow, x1 + arrow/2, y1 + arrow]);
+      arrows[1].points([x2, y2, x2 - arrow/2, y2 - arrow, x2 + arrow/2, y2 - arrow]);
+    }
+  }
+  
+  const midX = (x1 + x2) / 2;
+  const midY = (y1 + y2) / 2;
+  
+  const label = group.findOne('.label');
+  if (label) {
+    label.text(`${dim.value}${dim.unit}`);
+    if (isHoriz) {
+      label.position({ x: midX, y: midY - dim.fontSize - 4 });
+    } else {
+      label.position({ x: midX + dim.fontSize + 4, y: midY });
+    }
+    label.offsetX(label.width() / 2);
+    label.offsetY(label.height() / 2);
+  }
+  
+  const bg = group.findOne('.labelBg');
+  if (bg && label) {
+    bg.position({
+      x: label.x() - label.width() / 2 - 6,
+      y: label.y() - label.height() / 2 - 4
+    });
+    bg.width(label.width() + 12);
+    bg.height(label.height() + 8);
+  }
+  
+  const anchors = group.find('.anchor');
+  if (anchors.length >= 2) {
+    const half = 5;
+    anchors[0].position({ x: x1 - half, y: y1 - half });
+    anchors[1].position({ x: x2 - half, y: y2 - half });
+  }
+
+  if (dim.id === selectedDimId) {
+    highlightSelectedOnLayer();
+  }
+  
+  dimLayer.draw();
+}
+
+function removeDimensionFromCanvas(id) {
+  const group = dimLayer.findOne('#' + id);
+  if (group) group.destroy();
+}
+
+function selectDimension(id) {
+  selectedDimId = id;
+  
+  if (id) {
+    const dim = dimensions.find(d => d.id === id);
+    if (dim) {
+      document.getElementById('selValue').value = dim.value;
+      document.getElementById('selUnit').value = dim.unit;
+    }
+  } else {
+    document.getElementById('selValue').value = '';
+  }
+  
+  highlightSelectedOnLayer();
+  updateDimensionList();
+  updatePanelVisibility();
+}
+
+function highlightSelectedOnLayer() {
+  dimLayer.find('.dimension').forEach(group => {
+    const bg = group.findOne('.labelBg');
+    if (bg) {
+      if (group.id() === selectedDimId) {
+        bg.stroke('#3b82f6');
+        bg.strokeWidth(2);
+      } else {
+        bg.stroke(null);
+      }
+    }
+  });
+  dimLayer.draw();
+}
+
+function deleteSelected() {
+  if (!selectedDimId) return;
+  const idx = dimensions.findIndex(d => d.id === selectedDimId);
+  if (idx >= 0) {
+    removeDimensionFromCanvas(selectedDimId);
+    dimensions.splice(idx, 1);
+    selectedDimId = null;
+    updateDimensionList();
+    updatePanelVisibility();
+  }
+}
+
+function addDimensionFromPanel() {
+  if (!originalImage) {
+    showToast('请先上传图片', true);
+    return;
+  }
+  
+  dimColorIndex = (dimColorIndex + 1) % dimColors.length;
+  const color = dimColors[dimColorIndex];
+  
+  const padding = 80;
+  const imgX = padding;
+  const imgY = padding;
+  const imgW = konvaImage ? konvaImage.width() : 400;
+  const imgH = konvaImage ? konvaImage.height() : 400;
+  
+  const id = 'dim_' + Date.now();
+  const dim = {
+    id,
+    type: 'horizontal',
+    x1: imgX + 40,
+    y1: imgY + imgH + 40,
+    x2: imgX + imgW - 40,
+    y2: imgY + imgH + 40,
+    value: '45',
+    unit: 'cm',
+    lineColor: color,
+    lineWidth: parseInt(document.getElementById('styleLineWidth').value),
+    arrowSize: parseInt(document.getElementById('styleArrowSize').value),
+    textColor: color,
+    fontSize: parseInt(document.getElementById('styleFontSize').value)
+  };
+  
+  dimensions.push(dim);
+  drawDimension(dim);
+  selectDimension(id);
+  updateDimensionList();
+}
+
+function updateDimensionList() {
+  const list = document.getElementById('dimensionList');
+  list.innerHTML = dimensions.map(d => `
+    <div class="dim-item ${d.id === selectedDimId ? 'selected' : ''}" onclick="selectDimension('${d.id}')">
+      <div class="dim-icon ${d.type === 'horizontal' ? 'h' : 'v'}">${d.type === 'horizontal' ? '↔' : '↕'}</div>
+      <div class="dim-info">
+        <div class="dim-label">${d.type === 'horizontal' ? '宽度' : '高度'}</div>
+        <div class="dim-value">${d.value}${d.unit}</div>
+      </div>
+      <span class="dim-delete" onclick="event.stopPropagation(); deleteDimensionById('${d.id}')">×</span>
+    </div>
+  `).join('');
+}
+
+function deleteDimensionById(id) {
+  removeDimensionFromCanvas(id);
+  dimensions = dimensions.filter(d => d.id !== id);
+  if (selectedDimId === id) selectedDimId = null;
+  updateDimensionList();
+  updatePanelVisibility();
+}
+
+function applyStyleToAll() {
+  const lc = document.getElementById('styleLineColor').value;
+  const lw = parseInt(document.getElementById('styleLineWidth').value);
+  const as = parseInt(document.getElementById('styleArrowSize').value);
+  const tc = document.getElementById('styleTextColor').value;
+  const fs = parseInt(document.getElementById('styleFontSize').value);
+  
+  dimensions.forEach(d => {
+    d.lineColor = lc;
+    d.lineWidth = lw;
+    d.arrowSize = as;
+    d.textColor = tc;
+    d.fontSize = fs;
+    updateDimensionOnCanvas(d);
+  });
+  
+  showToast('样式已应用到全部标注');
+}
+
+function updatePanelVisibility() {
+  const hasImage = !!originalImage;
+  document.getElementById('panelUpload').style.display = 'block';
+  document.getElementById('panelDimensions').style.display = hasImage ? 'block' : 'none';
+  document.getElementById('panelStyle').style.display = hasImage ? 'block' : 'none';
+  document.getElementById('panelSelected').style.display = (hasImage) ? 'block' : 'none';
+  document.getElementById('panelExport').style.display = hasImage ? 'block' : 'none';
+  
+  if (!hasImage) {
+    document.getElementById('canvasPlaceholder').style.display = 'block';
+  } else {
+    document.getElementById('canvasPlaceholder').style.display = 'none';
+  }
+}
+
+function exportImage() {
+  if (!originalImage) {
+    showToast('请先上传图片', true);
+    return;
+  }
+  
+  const format = document.getElementById('exportFormat').value;
+  const exportScale = parseInt(document.getElementById('exportScale').value);
+  
+  const exportStage = new Konva.Stage({
+    width: stage.width() * exportScale,
+    height: stage.height() * exportScale
+  });
+  
+  const exportImageLayer = new Konva.Layer();
+  const exportDimLayer = new Konva.Layer();
+  exportStage.add(exportImageLayer);
+  exportStage.add(exportDimLayer);
+  
+  exportImageLayer.add(new Konva.Rect({
+    x: 0, y: 0,
+    width: exportStage.width(),
+    height: exportStage.height(),
+    fill: '#ffffff'
+  }));
+  
+  if (konvaImage) {
+    const imgClone = new Konva.Image({
+      x: konvaImage.x() * exportScale,
+      y: konvaImage.y() * exportScale,
+      image: konvaImage.image(),
+      width: konvaImage.width() * exportScale,
+      height: konvaImage.height() * exportScale
+    });
+    exportImageLayer.add(imgClone);
+  }
+  exportImageLayer.draw();
+  
+  dimensions.forEach(d => {
+    const scaled = { ...d };
+    scaled.x1 *= exportScale;
+    scaled.y1 *= exportScale;
+    scaled.x2 *= exportScale;
+    scaled.y2 *= exportScale;
+    scaled.lineWidth *= exportScale;
+    scaled.arrowSize *= exportScale;
+    scaled.fontSize *= exportScale;
+    drawScaledDimension(exportDimLayer, scaled);
+  });
+  exportDimLayer.draw();
+  
+  const dataURL = exportStage.toDataURL({
+    mimeType: format === 'jpg' ? 'image/jpeg' : 'image/png',
+    quality: 0.95
+  });
+  
+  const link = document.createElement('a');
+  link.download = `dimension_${Date.now()}.${format}`;
+  link.href = dataURL;
+  link.click();
+  
+  exportStage.destroy();
+  showToast('导出成功！');
+}
+
+function drawScaledDimension(layer, dim) {
+  const group = new Konva.Group();
+  const x1 = dim.x1, y1 = dim.y1, x2 = dim.x2, y2 = dim.y2;
+  const isHoriz = dim.type === 'horizontal';
+  const arrow = dim.arrowSize;
+  
+  group.add(new Konva.Line({
+    points: [x1, y1, x2, y2],
+    stroke: dim.lineColor,
+    strokeWidth: dim.lineWidth,
+    lineCap: 'round'
+  }));
+  
+  if (isHoriz) {
+    group.add(new Konva.Line({
+      points: [x1, y1, x1 + arrow, y1 - arrow/2, x1 + arrow, y1 + arrow/2],
+      fill: dim.lineColor,
+      closed: true
+    }));
+    group.add(new Konva.Line({
+      points: [x2, y2, x2 - arrow, y2 - arrow/2, x2 - arrow, y2 + arrow/2],
+      fill: dim.lineColor,
+      closed: true
+    }));
+  } else {
+    group.add(new Konva.Line({
+      points: [x1, y1, x1 - arrow/2, y1 + arrow, x1 + arrow/2, y1 + arrow],
+      fill: dim.lineColor,
+      closed: true
+    }));
+    group.add(new Konva.Line({
+      points: [x2, y2, x2 - arrow/2, y2 - arrow, x2 + arrow/2, y2 - arrow],
+      fill: dim.lineColor,
+      closed: true
+    }));
+  }
+  
+  const midX = (x1 + x2) / 2;
+  const midY = (y1 + y2) / 2;
+  
+  const label = new Konva.Text({
+    text: `${dim.value}${dim.unit}`,
+    fontSize: dim.fontSize,
+    fontFamily: 'sans-serif',
+    fontStyle: 'bold',
+    fill: dim.textColor
+  });
+  
+  label.offsetX(label.width() / 2);
+  label.offsetY(label.height() / 2);
+  
+  if (isHoriz) {
+    label.position({ x: midX, y: midY - dim.fontSize - 4 });
+  } else {
+    label.position({ x: midX + dim.fontSize + 4, y: midY });
+  }
+  
+  group.add(new Konva.Rect({
+    x: label.x() - label.width() / 2 - 6,
+    y: label.y() - label.height() / 2 - 4,
+    width: label.width() + 12,
+    height: label.height() + 8,
+    fill: 'rgba(255,255,255,0.9)',
+    cornerRadius: 4
+  }));
+  group.add(label);
+  
+  layer.add(group);
+}
+
+function showToast(msg, isError = false) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  
+  const toast = document.createElement('div');
+  toast.className = `toast ${isError ? 'error' : 'success'}`;
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2000);
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,96 @@
+/*
+ * 主题配色 - 极简三色系统
+ * 白色50% + 灰色35% + 蓝色15%
+ * 版本: 2.0.0
+ */
+
+/* ========== 主题切换过渡 ========== */
+
+*,
+*::before,
+*::after {
+  transition: background-color var(--transition-slow),
+              color var(--transition-slow),
+              border-color var(--transition-slow),
+              box-shadow var(--transition-slow);
+}
+
+.no-transition *,
+.no-transition *::before,
+.no-transition *::after {
+  transition: none !important;
+}
+
+/* ========== 主题切换按钮 ========== */
+
+.theme-toggle {
+  position: relative;
+  width: 48px;
+  height: 26px;
+  background: var(--border-light);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+}
+
+.theme-toggle-slider {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: var(--accent);
+  border-radius: 50%;
+  transition: transform var(--transition-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  left: 2px;
+}
+
+[data-theme="dark"] .theme-toggle-slider {
+  transform: translateX(22px);
+}
+
+.theme-toggle-icon::before {
+  content: "☀️";
+}
+
+[data-theme="dark"] .theme-toggle-icon::before {
+  content: "🌙";
+}
+
+/* ========== 主题切换浮动按钮 ========== */
+
+.theme-toggle-btn {
+  position: fixed;
+  top: var(--space-4);
+  right: var(--space-4);
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--bg-surface);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.theme-toggle-btn:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+}
+
+.theme-icon {
+  font-size: 16px;
+}
