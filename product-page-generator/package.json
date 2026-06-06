@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "product-page-generator",
-  "version": "1.0.0",
+  "version": "0.1.5",
   "description": "AI-powered product page generator with database",
   "main": "server/index.js",
   "scripts": {
@@ -22,3 +22,4 @@
     "sql.js": "^1.10.3"
   }
 }
+
