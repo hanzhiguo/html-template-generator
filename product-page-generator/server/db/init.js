@@ -264,6 +264,22 @@ async function initDatabase() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_agent_messages_conv ON agent_messages(conversation_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_agent_kb_search ON kb_documents(title, content, tags)`);
 
+  // LOGO素材表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS logo_assets (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id         INTEGER NOT NULL,
+      name            TEXT NOT NULL,
+      file_url        TEXT NOT NULL,
+      file_type       TEXT DEFAULT 'image',
+      width           INTEGER DEFAULT 0,
+      height          INTEGER DEFAULT 0,
+      created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_logo_assets_user ON logo_assets(user_id)`);
+
   const templateCount = all('SELECT COUNT(*) as count FROM templates')[0]?.count || 0;
   if (templateCount === 0) {
     console.log('Inserting default templates...');

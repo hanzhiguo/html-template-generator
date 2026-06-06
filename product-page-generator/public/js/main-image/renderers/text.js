@@ -1,80 +1,83 @@
-import { state } from '../core/state.js';
+import { S } from '../core/state.js';
 import { presets } from '../config/presets.js';
 import { getCtx } from '../core/canvas.js';
+import { roundRect, wrapText } from '../utils/drawing.js';
 
 export function drawText() {
-  const preset = presets[state.preset];
-  const titleSize = state.titleSize;
+  const preset = presets[S.preset];
+  const titleSize = S.titleSize;
   const subtitleSize = Math.max(16, Math.floor(titleSize * 0.5));
-  
   const c = getCtx();
   c.save();
-  
-  c.font = `${state.bold ? 'bold' : 'normal'} ${titleSize}px sans-serif`;
-  const titleWidth = c.measureText(state.mainTitle || '').width;
+
+  const maxWidth = preset.textAlign === 'center' ? 900 :
+                   preset.textAlign === 'right' ? preset.textX - 60 :
+                   1024 - preset.textX - 60;
+
+  c.font = `${S.bold ? 'bold' : 'normal'} ${titleSize}px sans-serif`;
+  const titleLines = wrapText(c, S.mainTitle || '', maxWidth);
   c.font = `normal ${subtitleSize}px sans-serif`;
-  const subtitleWidth = c.measureText(state.subTitle || '').width;
-  const maxTextWidth = Math.max(titleWidth, subtitleWidth);
-  
-  const textHeight = (state.mainTitle ? titleSize : 0) + (state.subTitle ? subtitleSize + 10 : 0);
+  const subtitleLines = wrapText(c, S.subTitle || '', maxWidth);
+
+  let maxLineWidth = 0;
+  c.font = `${S.bold ? 'bold' : 'normal'} ${titleSize}px sans-serif`;
+  titleLines.forEach(line => { maxLineWidth = Math.max(maxLineWidth, c.measureText(line).width); });
+  c.font = `normal ${subtitleSize}px sans-serif`;
+  subtitleLines.forEach(line => { maxLineWidth = Math.max(maxLineWidth, c.measureText(line).width); });
+
+  const lineHeight = titleSize;
+  const subtitleLineHeight = subtitleSize;
+  const titleTotalH = titleLines.length > 0 ? titleLines.length * lineHeight + (titleLines.length - 1) * 4 : 0;
+  const subtitleTotalH = subtitleLines.length > 0 ? subtitleLines.length * subtitleLineHeight + (subtitleLines.length - 1) * 4 + (titleLines.length > 0 ? 10 : 0) : 0;
+  const textHeight = titleTotalH + subtitleTotalH;
   const padding = 30;
-  
-  let bgX = preset.textAlign === 'center' ? preset.textX - maxTextWidth / 2 - padding :
-            preset.textAlign === 'right' ? preset.textX - maxTextWidth - padding :
-            preset.textX - padding;
-  let bgY = preset.textVAlign === 'center' ? preset.textY - textHeight / 2 - padding :
-            preset.textVAlign === 'bottom' ? preset.textY - textHeight - padding :
-            preset.textY - padding;
-  let bgW = maxTextWidth + padding * 2;
-  let bgH = textHeight + padding * 2;
-  
-  if (state.textBg) {
+
+  if (S.textBg) {
+    let bgX = preset.textAlign === 'center' ? preset.textX - maxLineWidth / 2 - padding :
+              preset.textAlign === 'right' ? preset.textX - maxLineWidth - padding :
+              preset.textX - padding;
+    let bgY = preset.textVAlign === 'center' ? preset.textY - textHeight / 2 - padding :
+              preset.textVAlign === 'bottom' ? preset.textY - textHeight - padding :
+              preset.textY - padding;
     c.fillStyle = 'rgba(0,0,0,0.5)';
-    roundRect(c, bgX, bgY, bgW, bgH, 16);
+    roundRect(c, bgX, bgY, maxLineWidth + padding * 2, textHeight + padding * 2, 16);
     c.fill();
   }
-  
-  if (state.shadow) {
+
+  if (S.shadow) {
     c.shadowColor = 'rgba(0,0,0,0.5)';
     c.shadowBlur = 10;
     c.shadowOffsetX = 2;
     c.shadowOffsetY = 2;
   }
-  
-  c.textAlign = preset.textAlign;
-  c.textBaseline = preset.textVAlign === 'top' ? 'top' : preset.textVAlign === 'bottom' ? 'bottom' : 'middle';
-  
-  let currentY = preset.textVAlign === 'center' ? preset.textY - (state.subTitle ? subtitleSize / 2 + 5 : 0) :
-                 preset.textVAlign === 'bottom' ? preset.textY - (state.subTitle ? subtitleSize + 10 : 0) :
-                 preset.textY;
-  
-  if (state.mainTitle) {
-    c.font = `${state.bold ? 'bold' : 'normal'} ${titleSize}px sans-serif`;
-    if (state.stroke) { c.strokeStyle = 'rgba(0,0,0,0.8)'; c.lineWidth = 3; c.strokeText(state.mainTitle, preset.textX, currentY); }
-    c.fillStyle = state.titleColor;
-    c.fillText(state.mainTitle, preset.textX, currentY);
-    currentY += titleSize + 10;
-  }
-  
-  if (state.subTitle) {
-    c.font = `normal ${subtitleSize}px sans-serif`;
-    if (state.stroke) { c.strokeStyle = 'rgba(0,0,0,0.8)'; c.lineWidth = 2; c.strokeText(state.subTitle, preset.textX, currentY); }
-    c.fillStyle = state.subtitleColor;
-    c.fillText(state.subTitle, preset.textX, currentY);
-  }
-  
-  c.restore();
-}
 
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
+  c.textAlign = preset.textAlign;
+  c.textBaseline = 'top';
+
+  let currentY = preset.textVAlign === 'center' ? preset.textY - textHeight / 2 :
+                 preset.textVAlign === 'bottom' ? preset.textY - textHeight :
+                 preset.textY;
+
+  if (titleLines.length > 0) {
+    c.font = `${S.bold ? 'bold' : 'normal'} ${titleSize}px sans-serif`;
+    titleLines.forEach((line) => {
+      if (S.stroke) { c.strokeStyle = 'rgba(0,0,0,0.8)'; c.lineWidth = 3; c.strokeText(line, preset.textX, currentY); }
+      c.fillStyle = S.titleColor;
+      c.fillText(line, preset.textX, currentY);
+      currentY += lineHeight + 4;
+    });
+    currentY += 6;
+  }
+
+  if (subtitleLines.length > 0) {
+    c.font = `normal ${subtitleSize}px sans-serif`;
+    subtitleLines.forEach((line) => {
+      if (S.stroke) { c.strokeStyle = 'rgba(0,0,0,0.8)'; c.lineWidth = 2; c.strokeText(line, preset.textX, currentY); }
+      c.fillStyle = S.subtitleColor;
+      c.fillText(line, preset.textX, currentY);
+      currentY += subtitleLineHeight + 4;
+    });
+  }
+
+  c.restore();
 }

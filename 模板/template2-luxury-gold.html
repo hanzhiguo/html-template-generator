@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>主图模板 2 — 奢华金 (Luxury Gold)</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ===== 设计系统：E-commerce Luxury ===== */
+  /* 配色: Luxury (#1C1917, #44403C, #CA8A04, #FAFAF9, #0C0A09) */
+  /* 字体: Playfair Display (标题) + Inter (正文) */
+  /* 风格: Dark Premium + Gold Accent + Glassmorphism */
+  :root {
+    --primary: #1C1917;
+    --primary-light: #44403C;
+    --gold: #CA8A04;
+    --gold-light: #EAB308;
+    --bg: #FAFAF9;
+    --bg-card: #FFFFFF;
+    --text: #0C0A09;
+    --text-light: #ffffff;
+    --border: #D6D3D1;
+    --shadow: rgba(0,0,0,0.25);
+    --font-heading: 'Playfair Display', serif;
+    --font-body: 'Inter', sans-serif;
+    --title-color: #ffffff;
+    --subtitle-color: #ffffff;
+    --text-bg: rgba(12,10,9,0.6);
+    --text-bg-radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-body);
+    background: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+
+  .container {
+    max-width: 1200px;
+    width: 100%;
+  }
+
+  .template-badge {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .template-badge h1 {
+    font-family: var(--font-heading);
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .template-badge p {
+    font-size: 16px;
+    color: #64748b;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+  .tag-group {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+  .tag {
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    background: #FFF7ED;
+    color: #9A3412;
+    border: 1px solid #FED7AA;
+  }
+
+  .mockup-phone {
+    width: 390px;
+    height: 844px;
+    background: #1a1a1a;
+    border-radius: 44px;
+    padding: 12px;
+    margin: 0 auto;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1);
+    position: relative;
+  }
+  .mockup-screen {
+    width: 100%;
+    height: 100%;
+    border-radius: 32px;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg);
+  }
+
+  .main-image {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: linear-gradient(160deg, #1C1917 0%, #292524 40%, #44403C 100%);
+  }
+
+  /* 金色光效装饰 */
+  .gold-glow {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle at center, rgba(202,138,4,0.15) 0%, transparent 60%);
+    top: -100px;
+    right: -100px;
+    pointer-events: none;
+  }
+  .gold-glow-2 {
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle at center, rgba(202,138,4,0.10) 0%, transparent 60%);
+    bottom: -50px;
+    left: -80px;
+    pointer-events: none;
+  }
+
+  /* 金粉粒子装饰 */
+  .particle {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    background: rgba(202,138,4,0.6);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .p1 { top: 15%; left: 10%; }
+  .p2 { top: 25%; left: 80%; }
+  .p3 { top: 60%; left: 15%; }
+  .p4 { top: 70%; left: 85%; }
+  .p5 { top: 40%; left: 50%; }
+  .p6 { top: 80%; left: 35%; }
+
+  /* 装饰线 */
+  .deco-line {
+    position: absolute;
+    border: 0.5px solid rgba(202,138,4,0.2);
+    pointer-events: none;
+  }
+  .deco-line-1 {
+    width: 60%;
+    height: 0;
+    top: 28%;
+    left: 20%;
+    border-top: 0.5px solid rgba(202,138,4,0.15);
+  }
+  .deco-line-2 {
+    width: 60%;
+    height: 0;
+    top: 72%;
+    left: 20%;
+    border-top: 0.5px solid rgba(202,138,4,0.15);
+  }
+
+  .light-effect {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 45%;
+    background: linear-gradient(180deg, rgba(202,138,4,0.08) 0%, transparent 100%);
+    pointer-events: none;
+  }
+
+  .logo {
+    position: absolute;
+    top: 40px;
+    left: 40px;
+    font-family: var(--font-heading);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 2px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    opacity: 0.85;
+    text-transform: uppercase;
+  }
+  .logo-mark {
+    width: 28px;
+    height: 28px;
+    border: 1.5px solid rgba(202,138,4,0.4);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .logo-mark svg { width: 14px; height: 14px; fill: var(--gold); }
+
+  .badge {
+    position: absolute;
+    top: 40px;
+    right: 40px;
+    background: transparent;
+    color: var(--gold);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 6px 16px;
+    border: 1px solid rgba(202,138,4,0.4);
+    border-radius: 4px;
+    z-index: 3;
+    text-transform: uppercase;
+  }
+
+  .text-layer {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding: 0 28px;
+    max-width: 340px;
+  }
+
+  .text-bg-block {
+    background: var(--text-bg);
+    border-radius: var(--text-bg-radius);
+    padding: 32px 28px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(202,138,4,0.2);
+    position: relative;
+    overflow: hidden;
+  }
+  .text-bg-block::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 35%;
+    background: linear-gradient(180deg, rgba(202,138,4,0.05) 0%, transparent 100%);
+    pointer-events: none;
+  }
+
+  .main-title {
+    font-family: var(--font-heading);
+    font-size: 40px;
+    font-weight: 700;
+    color: var(--title-color);
+    line-height: 1.15;
+    text-shadow: 0 2px 15px rgba(0,0,0,0.4);
+    margin-bottom: 16px;
+    letter-spacing: 0.5px;
+  }
+  .main-title .gold {
+    color: var(--gold);
+    font-style: italic;
+  }
+
+  .subtitle {
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 300;
+    color: var(--subtitle-color);
+    line-height: 1.7;
+    text-shadow: 0 1px 10px rgba(0,0,0,0.3);
+    opacity: 0.85;
+    letter-spacing: 0.5px;
+  }
+  .subtitle .divider {
+    display: inline-block;
+    width: 20px;
+    height: 1px;
+    background: rgba(202,138,4,0.5);
+    margin: 0 8px;
+    vertical-align: middle;
+  }
+
+  .dimension-layer {
+    position: absolute;
+    bottom: 40px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    z-index: 3;
+  }
+  .dim-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: rgba(202,138,4,0.6);
+    font-size: 11px;
+    font-weight: 400;
+    font-family: var(--font-body);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .dim-value {
+    font-family: var(--font-heading);
+    font-size: 16px;
+    font-weight: 600;
+    color: rgba(202,138,4,0.8);
+  }
+
+  .palette-section {
+    margin-top: 40px;
+    padding: 32px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .palette-section h2 {
+    font-family: var(--font-heading);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 20px;
+  }
+  .palette-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .palette-item {
+    height: 50px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: monospace;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  }
+  .palette-item.dark-text { color: #0C0A09; text-shadow: none; }
+
+  .specs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .spec-card {
+    padding: 16px;
+    background: #FFF7ED;
+    border-radius: 10px;
+    border: 1px solid #FED7AA;
+  }
+  .spec-card h3 {
+    font-family: var(--font-heading);
+    font-size: 13px;
+    font-weight: 700;
+    color: #9A3412;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .spec-card p {
+    font-size: 14px;
+    color: #431407;
+    line-height: 1.5;
+  }
+  .spec-card code {
+    font-size: 12px;
+    background: rgba(202,138,4,0.1);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: #92400E;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="template-badge">
+    <h1>模板 2 · 奢华金</h1>
+    <p>高端奢侈主图风格，基于 E-commerce Luxury 配色 + Classic Elegant 字体搭配，营造奢华、精致、高端的品牌氛围</p>
+    <div class="tag-group">
+      <span class="tag">E-commerce Luxury 配色</span>
+      <span class="tag">Playfair Display + Inter</span>
+      <span class="tag">暗调奢华</span>
+      <span class="tag">金箔质感</span>
+    </div>
+  </div>
+
+  <div class="mockup-phone">
+    <div class="mockup-screen">
+      <div class="main-image">
+        <div class="gold-glow"></div>
+        <div class="gold-glow-2"></div>
+        <div class="light-effect"></div>
+
+        <div class="deco-line deco-line-1"></div>
+        <div class="deco-line deco-line-2"></div>
+
+        <div class="particle p1"></div>
+        <div class="particle p2"></div>
+        <div class="particle p3"></div>
+        <div class="particle p4"></div>
+        <div class="particle p5"></div>
+        <div class="particle p6"></div>
+
+        <div class="logo">
+          <div class="logo-mark">
+            <svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/></svg>
+          </div>
+          LUXE
+        </div>
+
+        <div class="badge">✦ 2025 秋季系列</div>
+
+        <div class="text-layer">
+          <div class="text-bg-block">
+            <div class="main-title">以 <span class="gold">金</span> 之名<br>致 <span class="gold">臻</span> 之选</div>
+            <div class="subtitle">
+              意大利手工定制 · 限量发售
+              <span class="divider"></span>
+              全球 500 件
+            </div>
+          </div>
+        </div>
+
+        <div class="dimension-layer">
+          <div class="dim-item">
+            <span class="dim-value">18K</span>
+            黄金材质
+          </div>
+          <div class="dim-item">
+            <span class="dim-value">0.8</span>
+            克拉
+          </div>
+          <div class="dim-item">
+            <span class="dim-value">UNIQ</span>
+            编号
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="palette-section">
+    <h2>设计系统 · 配色方案 #4 E-commerce Luxury</h2>
+    <div class="palette-grid">
+      <div class="palette-item" style="background:#1C1917">#1C1917 Primary</div>
+      <div class="palette-item" style="background:#44403C">#44403C Secondary</div>
+      <div class="palette-item" style="background:#CA8A04">#CA8A04 Gold</div>
+      <div class="palette-item dark-text" style="background:#FAFAF9">#FAFAF9 BG</div>
+      <div class="palette-item" style="background:#0C0A09">#0C0A09 Text</div>
+      <div class="palette-item dark-text" style="background:#D6D3D1">#D6D3D1 Border</div>
+    </div>
+
+    <div class="specs-grid">
+      <div class="spec-card">
+        <h3>字体搭配</h3>
+        <p><strong>标题:</strong> Playfair Display 700 (40px)<br>
+        <strong>正文:</strong> Inter 300 (14px)<br>
+        <code>font-pairing #1 | Classic Elegant</code></p>
+      </div>
+      <div class="spec-card">
+        <h3>文字效果</h3>
+        <p>背景块: <code>rgba(12,10,9,0.6)</code><br>
+        模糊: 16px | 圆角: 12px<br>
+        金色边框: <code>rgba(202,138,4,0.2)</code></p>
+      </div>
+      <div class="spec-card">
+        <h3>适用场景</h3>
+        <p>珠宝首饰 · 奢侈品 · 高端腕表<br>
+          限量版产品 · 精品时装<br>
+        <code>titleColor: #ffffff | subtitleColor: #ffffff</code></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>主图模板 3 — 时尚粉 (Fashion Pink)</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ===== 设计系统：Creative Agency ===== */
+  /* 配色: (#EC4899, #F472B6, #06B6D4, #FDF2F8, #831843) */
+  /* 字体: Syne (标题) + Manrope (正文) */
+  /* 风格: Aurora UI + Glassmorphism */
+  :root {
+    --primary: #EC4899;
+    --primary-light: #F472B6;
+    --accent: #06B6D4;
+    --bg: #FDF2F8;
+    --bg-card: #FFFFFF;
+    --text: #831843;
+    --text-light: #ffffff;
+    --border: #FBCFE8;
+    --shadow: rgba(236,72,153,0.2);
+    --font-heading: 'Syne', sans-serif;
+    --font-body: 'Manrope', sans-serif;
+    --title-color: #ffffff;
+    --subtitle-color: #ffffff;
+    --text-bg: rgba(131,24,67,0.55);
+    --text-bg-radius: 20px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-body);
+    background: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+
+  .container {
+    max-width: 1200px;
+    width: 100%;
+  }
+
+  .template-badge {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .template-badge h1 {
+    font-family: var(--font-heading);
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .template-badge p {
+    font-size: 16px;
+    color: #64748b;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+  .tag-group {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+  .tag {
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    background: var(--bg);
+    color: var(--primary);
+    border: 1px solid var(--border);
+  }
+
+  .mockup-phone {
+    width: 390px;
+    height: 844px;
+    background: #1a1a1a;
+    border-radius: 44px;
+    padding: 12px;
+    margin: 0 auto;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1);
+    position: relative;
+  }
+  .mockup-screen {
+    width: 100%;
+    height: 100%;
+    border-radius: 32px;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg);
+  }
+
+  .main-image {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: linear-gradient(135deg, #EC4899 0%, #F472B6 30%, #06B6D4 100%);
+    background-size: 200% 200%;
+  }
+
+  /* 流动渐变装饰 (Aurora UI) */
+  .aurora-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.3;
+    pointer-events: none;
+  }
+  .aurora-1 {
+    width: 350px; height: 350px;
+    background: #06B6D4;
+    top: -80px; right: -60px;
+  }
+  .aurora-2 {
+    width: 280px; height: 280px;
+    background: #FDF2F8;
+    bottom: -40px; left: -80px;
+  }
+  .aurora-3 {
+    width: 200px; height: 200px;
+    background: #A855F7;
+    bottom: 100px; right: -30px;
+  }
+
+  /* 圆环装饰 */
+  .ring {
+    position: absolute;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .ring-1 { width: 300px; height: 300px; top: 10%; left: -10%; }
+  .ring-2 { width: 450px; height: 450px; bottom: -15%; right: -20%; }
+
+  /* 菱形装饰 */
+  .diamond {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid rgba(255,255,255,0.15);
+    transform: rotate(45deg);
+    pointer-events: none;
+  }
+  .diamond-1 { top: 20%; right: 15%; }
+  .diamond-2 { bottom: 25%; left: 12%; width: 14px; height: 14px; }
+
+  .light-effect {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 100%);
+    pointer-events: none;
+  }
+
+  .logo {
+    position: absolute;
+    top: 40px;
+    left: 40px;
+    font-family: var(--font-heading);
+    font-size: 24px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    opacity: 0.85;
+    text-transform: uppercase;
+  }
+  .logo-mark {
+    width: 30px;
+    height: 30px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid rgba(255,255,255,0.25);
+  }
+  .logo-mark svg { width: 16px; height: 16px; fill: #fff; }
+
+  .badge {
+    position: absolute;
+    top: 40px;
+    right: 40px;
+    background: #ffffff;
+    color: var(--primary);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 1px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    z-index: 3;
+    box-shadow: 0 4px 15px rgba(236,72,153,0.3);
+  }
+
+  .text-layer {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding: 0 28px;
+    max-width: 340px;
+  }
+
+  .text-bg-block {
+    background: var(--text-bg);
+    border-radius: var(--text-bg-radius);
+    padding: 28px 24px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1.5px solid rgba(255,255,255,0.25);
+    position: relative;
+    overflow: hidden;
+  }
+  .text-bg-block::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 40%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+    pointer-events: none;
+  }
+
+  .main-title {
+    font-family: var(--font-heading);
+    font-size: 38px;
+    font-weight: 800;
+    color: var(--title-color);
+    line-height: 1.2;
+    text-shadow: 0 2px 15px rgba(0,0,0,0.25);
+    margin-bottom: 14px;
+    letter-spacing: 1px;
+  }
+  .main-title .highlight {
+    color: #06B6D4;
+    position: relative;
+  }
+
+  .subtitle {
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--subtitle-color);
+    line-height: 1.6;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.2);
+    opacity: 0.9;
+  }
+
+  .dimension-layer {
+    position: absolute;
+    bottom: 40px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    z-index: 3;
+  }
+  .dim-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255,255,255,0.7);
+    font-size: 12px;
+    font-weight: 500;
+    font-family: var(--font-body);
+  }
+  .dim-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.4);
+  }
+
+  .palette-section {
+    margin-top: 40px;
+    padding: 32px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .palette-section h2 {
+    font-family: var(--font-heading);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 20px;
+  }
+  .palette-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .palette-item {
+    height: 50px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: monospace;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  }
+  .palette-item.dark-text { color: #831843; text-shadow: none; }
+
+  .specs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .spec-card {
+    padding: 16px;
+    background: var(--bg);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .spec-card h3 {
+    font-family: var(--font-heading);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .spec-card p {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .spec-card code {
+    font-size: 12px;
+    background: rgba(236,72,153,0.08);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--primary);
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="template-badge">
+    <h1>模板 3 · 时尚粉</h1>
+    <p>时尚潮流主图风格，基于 Creative Agency 配色 + Fashion Forward 字体搭配，营造大胆、前卫、活力的时尚氛围</p>
+    <div class="tag-group">
+      <span class="tag">Creative Agency 配色</span>
+      <span class="tag">Syne + Manrope</span>
+      <span class="tag">Aurora 渐变</span>
+      <span class="tag">毛玻璃效果</span>
+    </div>
+  </div>
+
+  <div class="mockup-phone">
+    <div class="mockup-screen">
+      <div class="main-image">
+        <div class="aurora-blob aurora-1"></div>
+        <div class="aurora-blob aurora-2"></div>
+        <div class="aurora-blob aurora-3"></div>
+        <div class="ring ring-1"></div>
+        <div class="ring ring-2"></div>
+        <div class="diamond diamond-1"></div>
+        <div class="diamond diamond-2"></div>
+        <div class="light-effect"></div>
+
+        <div class="logo">
+          <div class="logo-mark">
+            <svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
+          </div>
+          F/W 2025
+        </div>
+
+        <div class="badge">NEW ARRIVAL</div>
+
+        <div class="text-layer">
+          <div class="text-bg-block">
+            <div class="main-title">时髦 <span class="highlight">不设限</span><br>秋冬序曲</div>
+            <div class="subtitle">设计师联名系列 · 首发限量<br>全场满 500 减 80</div>
+          </div>
+        </div>
+
+        <div class="dimension-layer">
+          <div class="dim-item">
+            <span class="dim-dot"></span>
+            独家联名
+          </div>
+          <div class="dim-item">
+            <span class="dim-dot"></span>
+            限量 200 件
+          </div>
+          <div class="dim-item">
+            <span class="dim-dot"></span>
+            免运费
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="palette-section">
+    <h2>设计系统 · 配色方案 #11 Creative Agency</h2>
+    <div class="palette-grid">
+      <div class="palette-item" style="background:#EC4899">#EC4899 Primary</div>
+      <div class="palette-item" style="background:#F472B6">#F472B6 Secondary</div>
+      <div class="palette-item" style="background:#06B6D4">#06B6D4 Accent</div>
+      <div class="palette-item dark-text" style="background:#FDF2F8">#FDF2F8 BG</div>
+      <div class="palette-item" style="background:#831843">#831843 Text</div>
+      <div class="palette-item dark-text" style="background:#FBCFE8">#FBCFE8 Border</div>
+    </div>
+
+    <div class="specs-grid">
+      <div class="spec-card">
+        <h3>字体搭配</h3>
+        <p><strong>标题:</strong> Syne 800 (38px)<br>
+        <strong>正文:</strong> Manrope 400 (15px)<br>
+        <code>font-pairing #18 | Fashion Forward</code></p>
+      </div>
+      <div class="spec-card">
+        <h3>文字效果</h3>
+        <p>背景块: <code>rgba(131,24,67,0.55)</code><br>
+        模糊: 20px | 圆角: 20px<br>
+        玻璃高光边框: <code>rgba(255,255,255,0.25)</code></p>
+      </div>
+      <div class="spec-card">
+        <h3>适用场景</h3>
+        <p>时装 · 美妆 · 配饰<br>
+        潮流单品 · 设计师品牌<br>
+        <code>titleColor: #ffffff | subtitleColor: #ffffff</code></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

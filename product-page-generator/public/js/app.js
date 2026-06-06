@@ -182,7 +182,25 @@ class App extends AppBase {
         this.currentPage = this.exportManager.currentPage;
     }
 
-    // Agent相关方法 - 委托给 agentManager
+    // 组件加载完成后初始化AIChat
+    async _onComponentsLoaded() {
+        if (window.AIChat) {
+            window.AIChat.init({
+                getToken: () => this.token || localStorage.getItem('token'),
+                conversationIdKey: 'aiConversationId'
+            });
+            // 注册首页工具处理器
+            window.AIChat.registerToolHandler('get_product_attachments', (r) => {
+                if (r.data?.attachments) window.AIChat.addAttachmentCard(r.data.attachments);
+            });
+            window.AIChat.registerToolHandler('get_download_link', (r) => {
+                if (r.data) window.AIChat.addAttachmentCard([r.data]);
+            });
+            console.log('[App] AIChat组件已初始化');
+        }
+    }
+
+    // Agent相关方法 - 委托给 agentManager（数据加载）和 AIChat（UI渲染）
     async loadAgentTools() {
         await this.agentManager.loadTools();
     }
@@ -204,7 +222,8 @@ class App extends AppBase {
     }
 
     addMessageToUI(role, content) {
-        this.agentManager.addMessageToUI(role, content);
+        if (window.AIChat) return window.AIChat.addMessage(role, content);
+        return this.agentManager.addMessageToUI(role, content);
     }
 
     renderMessageContent(content) {
@@ -212,35 +231,43 @@ class App extends AppBase {
     }
 
     addAttachmentCard(attachments) {
-        this.agentManager.addAttachmentCard(attachments);
+        if (window.AIChat) return window.AIChat.addAttachmentCard(attachments);
+        return this.agentManager.addAttachmentCard(attachments);
     }
 
     addStreamingMessage() {
+        if (window.AIChat) return window.AIChat.addStreamingMessage();
         return this.agentManager.addStreamingMessage();
     }
 
     appendStreamingContent(msgEl, content) {
-        this.agentManager.appendStreamingContent(msgEl, content);
+        if (window.AIChat) return window.AIChat.appendStreamingContent(msgEl, content);
+        return this.agentManager.appendStreamingContent(msgEl, content);
     }
 
     finalizeStreamingMessage(msgEl, errorContent) {
-        this.agentManager.finalizeStreamingMessage(msgEl, errorContent);
+        if (window.AIChat) return window.AIChat.finalizeStreamingMessage(msgEl, errorContent);
+        return this.agentManager.finalizeStreamingMessage(msgEl, errorContent);
     }
 
     addToolStep(toolCalls) {
+        if (window.AIChat) return window.AIChat.addToolStep(toolCalls);
         return this.agentManager.addToolStep(toolCalls);
     }
 
     completeToolStep(stepEl, results) {
-        this.agentManager.completeToolStep(stepEl, results);
+        if (window.AIChat) return window.AIChat.completeToolStep(stepEl, results);
+        return this.agentManager.completeToolStep(stepEl, results);
     }
 
     showStopButton() {
+        if (window.AIChat) return window.AIChat.showStopButton();
         return this.agentManager.showStopButton();
     }
 
     hideStopButton() {
-        this.agentManager.hideStopButton();
+        if (window.AIChat) return window.AIChat.hideStopButton();
+        return this.agentManager.hideStopButton();
     }
 
     // 设置相关方法 - 委托给 settingsManager

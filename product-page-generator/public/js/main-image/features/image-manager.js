@@ -1,30 +1,28 @@
-import { state } from '../core/state.js';
+import { S, addLibraryItem, removeLibraryItem, setTemplateCount, setSlotImage, clearSlot, autoFillSlots, clearAllSlots } from '../core/state.js';
 import { render } from '../core/canvas.js';
 import { showToast } from '../utils/toast.js';
 
+// 批量加载图片到素材库
 export function handleFiles(files) {
   const validFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
-  
   if (validFiles.length === 0) {
     showToast('请选择有效的图片文件', true);
     return;
   }
-  
+
+  let loaded = 0;
   validFiles.forEach(file => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        state.images.push({
-          img: img,
-          scale: 1,
-          offsetX: 0,
-          offsetY: 0,
-          name: file.name
-        });
-        renderImageList();
-        autoSelectTemplate();
-        render();
+        addLibraryItem(img, file.name, e.target.result);
+        loaded++;
+        if (loaded === validFiles.length) {
+          renderLibrary();
+          render();
+          showToast(`已加载 ${loaded} 张图片`);
+        }
       };
       img.src = e.target.result;
     };
@@ -32,122 +30,154 @@ export function handleFiles(files) {
   });
 }
 
-export function deleteImage(index) {
-  state.images.splice(index, 1);
-  state.selectedImages = state.selectedImages.filter(i => i !== index);
-  renderImageList();
-  render();
+// 渲染素材库
+export function renderLibrary() {
+  const container = document.getElementById('libraryList');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  S.library.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'lib-item' + (S.batchSelectedLibIds.includes(item.id) ? ' selected' : '');
+    div.draggable = true;
+    div.dataset.libId = item.id;
+    div.innerHTML = `
+      <img src="${item.src}" alt="${item.name}" draggable="false">
+      <span class="lib-name" title="${item.name}">${item.name}</span>
+      <button class="lib-del" title="删除">&times;</button>
+    `;
+
+    // 拖拽开始
+    div.addEventListener('dragstart', (e) => {
+      S.dragLibId = item.id;
+      e.dataTransfer.effectAllowed = 'copy';
+      e.dataTransfer.setData('text/plain', item.id);
+      div.classList.add('dragging');
+    });
+    div.addEventListener('dragend', () => {
+      S.dragLibId = null;
+      div.classList.remove('dragging');
+    });
+
+    // 点击选中（用于批量操作）
+    div.addEventListener('click', (e) => {
+      if (e.target.classList.contains('lib-del')) return;
+      toggleBatchSelect(item.id);
+    });
+
+    // 删除
+    div.querySelector('.lib-del').addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeLibraryItem(item.id);
+      S.batchSelectedLibIds = S.batchSelectedLibIds.filter(id => id !== item.id);
+      renderLibrary();
+      renderSlotIndicators();
+      render();
+    });
+
+    container.appendChild(div);
+  });
+
+  updateBatchCount();
 }
 
-export function renderImageList() {
-  const container = document.getElementById('imageList');
+// 切换批量选中
+function toggleBatchSelect(id) {
+  const idx = S.batchSelectedLibIds.indexOf(id);
+  if (idx === -1) {
+    S.batchSelectedLibIds.push(id);
+  } else {
+    S.batchSelectedLibIds.splice(idx, 1);
+  }
+  renderLibrary();
+}
+
+// 全选素材
+export function selectAllLibrary() {
+  S.batchSelectedLibIds = S.library.map(i => i.id);
+  renderLibrary();
+}
+
+// 取消全选
+export function deselectAllLibrary() {
+  S.batchSelectedLibIds = [];
+  renderLibrary();
+}
+
+// 更新批量计数
+function updateBatchCount() {
+  const el = document.getElementById('batchCount');
+  if (el) el.textContent = S.batchSelectedLibIds.length;
+  const libCount = document.getElementById('libCount');
+  if (libCount) libCount.textContent = S.library.length;
+}
+
+// 渲染槽位指示器（显示哪些素材在哪个槽位）
+export function renderSlotIndicators() {
+  const container = document.getElementById('slotIndicators');
   if (!container) return;
-  
+
   container.innerHTML = '';
-  
-  state.images.forEach((imgObj, i) => {
+  S.slots.forEach((slot, i) => {
     const div = document.createElement('div');
-    div.className = 'image-item' + (state.selectedImages.includes(i) ? ' selected' : '');
-    div.innerHTML = `
-      <input type="checkbox" ${state.selectedImages.includes(i) ? 'checked' : ''}>
-      <img src="${imgObj.img.src}" alt="">
-      <span class="order">${i + 1}</span>
-      ${imgObj.scale !== 1 ? `<span class="scale-badge">${(imgObj.scale * 100).toFixed(0)}%</span>` : ''}
-      <button class="delete-btn">×</button>
-    `;
-    
-    div.querySelector('input').addEventListener('change', (e) => {
-      e.stopPropagation();
-      toggleImageSelection(i);
+    div.className = 'slot-indicator';
+    div.dataset.slotIndex = i;
+
+    if (slot.libraryId) {
+      const item = S.library.find(l => l.id === slot.libraryId);
+      if (item) {
+        div.innerHTML = `
+          <img src="${item.src}" alt="">
+          <span class="slot-num">${i + 1}</span>
+          <button class="slot-clear" title="移除">&times;</button>
+        `;
+        div.querySelector('.slot-clear').addEventListener('click', (e) => {
+          e.stopPropagation();
+          clearSlot(i);
+          renderSlotIndicators();
+          render();
+        });
+      }
+    } else {
+      div.innerHTML = `<span class="slot-num">${i + 1}</span><span class="slot-empty">拖入图片</span>`;
+    }
+
+    // 拖放目标
+    div.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      div.classList.add('drag-over');
     });
-    
-    div.querySelector('.delete-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      deleteImage(i);
+    div.addEventListener('dragleave', () => {
+      div.classList.remove('drag-over');
     });
-    
-    div.addEventListener('click', () => {
-      toggleImageSelection(i);
+    div.addEventListener('drop', (e) => {
+      e.preventDefault();
+      div.classList.remove('drag-over');
+      const libId = parseInt(e.dataTransfer.getData('text/plain'));
+      if (libId) {
+        setSlotImage(i, libId);
+        renderSlotIndicators();
+        render();
+      }
     });
-    
+
     container.appendChild(div);
   });
 }
 
-export function toggleImageSelection(index) {
-  const idx = state.selectedImages.indexOf(index);
-  if (idx === -1) {
-    state.selectedImages.push(index);
-  } else {
-    state.selectedImages.splice(idx, 1);
-  }
-  renderImageList();
-  updateBatchControls();
-}
-
-export function selectAllImages() {
-  state.selectedImages = state.images.map((_, i) => i);
-  renderImageList();
-  updateBatchControls();
-}
-
-export function deselectAllImages() {
-  state.selectedImages = [];
-  renderImageList();
-  updateBatchControls();
-}
-
-export function updateBatchControls() {
-  const panel = document.getElementById('batchScalePanel');
-  if (!panel) return;
-  
-  if (state.selectedImages.length > 0) {
-    panel.style.display = 'block';
-  } else {
-    panel.style.display = 'none';
-  }
-}
-
-export function applyBatchScale() {
-  const scaleInput = document.getElementById('batchScale');
-  if (!scaleInput) return;
-  
-  const scale = parseFloat(scaleInput.value) || 1;
-  
-  state.selectedImages.forEach(i => {
-    if (state.images[i]) {
-      state.images[i].scale = scale;
-    }
-  });
-  
-  renderImageList();
+// 自动填充
+export function autoFill() {
+  autoFillSlots();
+  renderSlotIndicators();
   render();
-  showToast('批量缩放已应用');
+  showToast('已自动填充');
 }
 
-export function resetBatchScale() {
-  state.selectedImages.forEach(i => {
-    if (state.images[i]) {
-      state.images[i].scale = 1;
-      state.images[i].offsetX = 0;
-      state.images[i].offsetY = 0;
-    }
-  });
-  
-  renderImageList();
+// 清空所有槽位
+export function clearSlots() {
+  clearAllSlots();
+  renderSlotIndicators();
   render();
-  showToast('已重置图片设置');
 }
-
-function autoSelectTemplate() {
-  const count = state.images.length;
-  if (count <= 9 && count >= 1) {
-    state.templateCount = count;
-    const templateItems = document.querySelectorAll('.template-item');
-    templateItems.forEach((item, i) => {
-      item.classList.toggle('active', i + 1 === count);
-    });
-  }
-}
-
-export { autoSelectTemplate };

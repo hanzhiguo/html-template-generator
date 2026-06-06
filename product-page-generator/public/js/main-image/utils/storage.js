@@ -47,6 +47,11 @@ export function loadTemplate(name) {
   Object.assign(state, template.state);
   render();
   updateUIFromState();
+  
+  if (state.dimEnabled && typeof window.initKonvaOverlay === 'function') {
+    window.initKonvaOverlay();
+  }
+  
   showToast('模板加载成功');
 }
 
@@ -120,4 +125,102 @@ function updateUIFromState() {
   if (inputs.titleSize) inputs.titleSize.value = state.titleSize;
   if (inputs.imageGap) inputs.imageGap.value = state.imageGap;
   if (inputs.imageRadius) inputs.imageRadius.value = state.imageRadius;
+  
+  const dimToggle = document.getElementById('dimToggle');
+  const dimPanel = document.getElementById('dimPanel');
+  if (dimToggle) {
+    dimToggle.checked = state.dimEnabled;
+    if (dimPanel) {
+      dimPanel.style.display = state.dimEnabled ? 'block' : 'none';
+    }
+  }
+  
+  const dragOverlay = document.getElementById('dragOverlay');
+  if (dragOverlay) {
+    dragOverlay.style.pointerEvents = state.dimEnabled ? 'none' : 'auto';
+  }
+  
+  const dimColor = document.getElementById('dimColor');
+  if (dimColor) dimColor.value = state.dimColor;
+  
+  const dimLineW = document.getElementById('dimLineW');
+  const dimLineWVal = document.getElementById('dimLineWVal');
+  if (dimLineW) {
+    dimLineW.value = state.dimLineW;
+    if (dimLineWVal) dimLineWVal.textContent = state.dimLineW + 'px';
+  }
+  
+  const dimFontS = document.getElementById('dimFontS');
+  const dimFontSVal = document.getElementById('dimFontSVal');
+  if (dimFontS) {
+    dimFontS.value = state.dimFontS;
+    if (dimFontSVal) dimFontSVal.textContent = state.dimFontS + 'px';
+  }
+  
+  const dimTextColor = document.getElementById('dimTextColor');
+  if (dimTextColor) dimTextColor.value = state.dimTextColor;
+  
+  const dimEndStyle = document.getElementById('dimEndStyle');
+  if (dimEndStyle) dimEndStyle.value = state.dimEndStyle;
+  
+  const dimTextBg = document.getElementById('dimTextBg');
+  if (dimTextBg) dimTextBg.value = state.dimTextBg;
+  
+  const dimCount = document.getElementById('dimCount');
+  if (dimCount) dimCount.textContent = state.dimensions.length;
+  
+  const exportSizeSelect = document.getElementById('exportSizeSelect');
+  if (exportSizeSelect && state.exportSize) {
+    exportSizeSelect.value = state.exportSize;
+    const exportBtn = document.getElementById('exportBtn');
+    if (exportBtn) {
+      exportBtn.textContent = `📷 导出图片 (${state.exportSize}×${state.exportSize})`;
+    }
+    const previewTitle = document.querySelector('.preview-title');
+    if (previewTitle) {
+      previewTitle.textContent = `预览效果 · 输出尺寸: ${state.exportSize} × ${state.exportSize}`;
+    }
+  }
+  
+  updateDimList();
+}
+
+function updateDimList() {
+  const dimList = document.getElementById('dimList');
+  if (!dimList) return;
+  
+  dimList.innerHTML = state.dimensions.map(d => `
+    <div class="dim-item" data-id="${d.id}" style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:#f8fafc;border-radius:4px;margin-bottom:4px;cursor:pointer;">
+      <span style="flex:1;font-size:11px;">${d.value}${d.unit}</span>
+      <button class="btn-delete-dim" data-id="${d.id}" style="background:#ef4444;color:white;border:none;width:18px;height:18px;border-radius:50%;cursor:pointer;font-size:10px;">×</button>
+    </div>
+  `).join('');
+  
+  dimList.querySelectorAll('.dim-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      if (!e.target.classList.contains('btn-delete-dim')) {
+        state.selectedDimId = item.dataset.id;
+        const d = state.dimensions.find(d => d.id === state.selectedDimId);
+        if (d) {
+          const dimValue = document.getElementById('dimValue');
+          if (dimValue) dimValue.value = d.value;
+        }
+        dimList.querySelectorAll('.dim-item').forEach(i => i.style.background = '#f8fafc');
+        item.style.background = '#dbeafe';
+      }
+    });
+  });
+  
+  dimList.querySelectorAll('.btn-delete-dim').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      state.dimensions = state.dimensions.filter(d => d.id !== id);
+      if (state.selectedDimId === id) state.selectedDimId = null;
+      updateDimList();
+      const dimCount = document.getElementById('dimCount');
+      if (dimCount) dimCount.textContent = state.dimensions.length;
+      render();
+    });
+  });
 }

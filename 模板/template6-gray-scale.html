@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>主图模板 6 — 高级灰 (Gray Scale)</title>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ===== 设计系统：Neutral Gray ===== */
+  /* 配色: 灰度层级 (#F8FAFC, #E2E8F0, #64748B, #1E293B, #0F172A) */
+  /* 字体: Lexend (标题) + Source Sans 3 (正文) */
+  /* 风格: Corporate Trust + Soft UI */
+  :root {
+    --gray-50: #F8FAFC;
+    --gray-100: #F1F5F9;
+    --gray-200: #E2E8F0;
+    --gray-300: #CBD5E1;
+    --gray-400: #94A3B8;
+    --gray-500: #64748B;
+    --gray-600: #475569;
+    --gray-700: #334155;
+    --gray-800: #1E293B;
+    --gray-900: #0F172A;
+    --primary: #475569;
+    --accent: #64748B;
+    --font-heading: 'Lexend', sans-serif;
+    --font-body: 'Source Sans 3', sans-serif;
+    --title-color: #ffffff;
+    --subtitle-color: #ffffff;
+    --text-bg: rgba(15,23,42,0.55);
+    --text-bg-radius: 8px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-body);
+    background: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+
+  .container { max-width: 1200px; width: 100%; }
+
+  .template-badge {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .template-badge h1 {
+    font-family: var(--font-heading);
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 8px;
+  }
+  .template-badge p {
+    font-size: 16px;
+    color: var(--gray-500);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+  .tag-group {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+  .tag {
+    padding: 4px 14px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    background: var(--gray-800);
+    color: var(--gray-100);
+    border: none;
+  }
+
+  .mockup-phone {
+    width: 390px;
+    height: 844px;
+    background: #1a1a1a;
+    border-radius: 44px;
+    padding: 12px;
+    margin: 0 auto;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1);
+    position: relative;
+  }
+  .mockup-screen {
+    width: 100%;
+    height: 100%;
+    border-radius: 32px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .main-image {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: linear-gradient(160deg, #E2E8F0 0%, #F1F5F9 40%, #F8FAFC 100%);
+  }
+
+  /* 灰度渐变叠层 */
+  .gray-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(180deg,
+      rgba(15,23,42,0.4) 0%,
+      rgba(30,41,59,0.25) 30%,
+      rgba(71,85,105,0.15) 60%,
+      rgba(100,116,139,0.1) 100%
+    );
+    pointer-events: none;
+  }
+
+  /* 圆形装饰 */
+  .g-circle {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .gc-1 {
+    width: 380px; height: 380px;
+    background: var(--gray-200);
+    top: -120px; right: -80px;
+  }
+  .gc-2 {
+    width: 250px; height: 250px;
+    background: var(--gray-300);
+    bottom: -60px; left: -80px;
+    opacity: 0.5;
+  }
+  .gc-3 {
+    width: 120px; height: 120px;
+    border: 1px solid var(--gray-400);
+    opacity: 0.2;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  /* 细线纹理 */
+  .line-texture {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 24px,
+      rgba(100,116,139,0.04) 24px,
+      rgba(100,116,139,0.04) 25px
+    );
+    pointer-events: none;
+  }
+
+  /* 水平装饰条 */
+  .bar {
+    position: absolute;
+    height: 3px;
+    background: var(--gray-300);
+    pointer-events: none;
+  }
+  .bar-1 { top: 20%; left: 0; width: 40%; }
+  .bar-2 { bottom: 30%; right: 0; width: 35%; }
+
+  /* 正方形装饰 */
+  .g-square {
+    position: absolute;
+    border: 1.5px solid var(--gray-300);
+    pointer-events: none;
+    opacity: 0.3;
+  }
+  .gs-1 { top: 15%; right: 12%; width: 24px; height: 24px; }
+  .gs-2 { bottom: 22%; left: 10%; width: 16px; height: 16px; }
+
+  .light-effect {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 40%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 100%);
+    pointer-events: none;
+  }
+
+  .logo {
+    position: absolute;
+    top: 40px;
+    left: 40px;
+    font-family: var(--font-heading);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--gray-800);
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 3;
+  }
+  .logo-mark {
+    width: 26px;
+    height: 26px;
+    border: 2px solid var(--gray-600);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .logo-mark svg { width: 12px; height: 12px; fill: var(--gray-600); }
+
+  .badge {
+    position: absolute;
+    top: 40px;
+    right: 40px;
+    font-family: var(--font-heading);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-500);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    z-index: 3;
+    padding: 8px 16px;
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 4px;
+  }
+
+  .text-layer {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding: 0 28px;
+    max-width: 360px;
+  }
+
+  .text-bg-block {
+    background: var(--text-bg);
+    border-radius: var(--text-bg-radius);
+    padding: 30px 32px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+
+  .main-title {
+    font-family: var(--font-heading);
+    font-size: 38px;
+    font-weight: 700;
+    color: var(--title-color);
+    line-height: 1.2;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    margin-bottom: 14px;
+    letter-spacing: -0.3px;
+  }
+  .main-title .light {
+    font-weight: 300;
+    color: rgba(255,255,255,0.7);
+  }
+
+  .subtitle {
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--subtitle-color);
+    line-height: 1.7;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.15);
+    opacity: 0.85;
+  }
+
+  .dimension-layer {
+    position: absolute;
+    bottom: 40px;
+    left: 40px;
+    right: 40px;
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    z-index: 3;
+  }
+  .dim-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: var(--gray-400);
+    font-size: 10px;
+    font-weight: 600;
+    font-family: var(--font-heading);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+  .dim-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--gray-300);
+  }
+
+  .palette-section {
+    margin-top: 40px;
+    padding: 32px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .palette-section h2 {
+    font-family: var(--font-heading);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 20px;
+  }
+  .palette-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .palette-item {
+    height: 50px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: monospace;
+    color: #fff;
+  }
+  .palette-item.dark-text { color: #1E293B; }
+  .palette-item.dark-text-2 { color: #0F172A; }
+
+  .specs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .spec-card {
+    padding: 16px;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 4px;
+  }
+  .spec-card h3 {
+    font-family: var(--font-heading);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--gray-700);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .spec-card p {
+    font-size: 14px;
+    color: var(--gray-600);
+    line-height: 1.5;
+  }
+  .spec-card code {
+    font-size: 12px;
+    background: var(--gray-100);
+    padding: 1px 6px;
+    border-radius: 2px;
+    color: var(--gray-800);
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="template-badge">
+    <h1>模板 6 · 高级灰</h1>
+    <p>灰色系电商主图，基于 Corporate Trust 设计准则，层次丰富的灰度配色传递专业、沉稳、值得信赖的品牌气质</p>
+    <div class="tag-group">
+      <span class="tag">灰度层级配色</span>
+      <span class="tag">Lexend + Source Sans 3</span>
+      <span class="tag">Corporate Trust</span>
+      <span class="tag">柔和叠层</span>
+    </div>
+  </div>
+
+  <div class="mockup-phone">
+    <div class="mockup-screen">
+      <div class="main-image">
+        <!-- 灰度叠层 -->
+        <div class="gray-overlay"></div>
+
+        <!-- 圆形装饰 -->
+        <div class="g-circle gc-1"></div>
+        <div class="g-circle gc-2"></div>
+        <div class="g-circle gc-3"></div>
+
+        <!-- 纹理 -->
+        <div class="line-texture"></div>
+
+        <!-- 装饰条 -->
+        <div class="bar bar-1"></div>
+        <div class="bar bar-2"></div>
+
+        <!-- 方块 -->
+        <div class="g-square gs-1"></div>
+        <div class="g-square gs-2"></div>
+
+        <div class="light-effect"></div>
+
+        <!-- LOGO -->
+        <div class="logo">
+          <div class="logo-mark">
+            <svg viewBox="0 0 24 24"><path d="M3 3h18v18H3V3zm2 2v14h14V5H5z"/><path d="M7 7h10v2H7zm0 4h8v2H7zm0 4h6v2H7z"/></svg>
+          </div>
+          GRAYSCALE
+        </div>
+
+        <div class="badge">premium collection</div>
+
+        <!-- 主文字 -->
+        <div class="text-layer">
+          <div class="text-bg-block">
+            <div class="main-title">
+              灰度 · <span class="light">高级感</span><br>
+              从不止一种
+            </div>
+            <div class="subtitle">
+              介于黑白之间的优雅 · 历久弥新的设计<br>
+              满 299 赠限量手袋
+            </div>
+          </div>
+        </div>
+
+        <!-- 参数标注 -->
+        <div class="dimension-layer">
+          <div class="dim-item">
+            <span class="dim-value">100%</span>
+            Wool
+          </div>
+          <div class="dim-item">
+            <span class="dim-value">6</span>
+            Colors
+          </div>
+          <div class="dim-item">
+            <span class="dim-value">ISO</span>
+            Certified
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 调色板 -->
+  <div class="palette-section">
+    <h2>设计系统 · 灰度层级配色</h2>
+    <div class="palette-grid">
+      <div class="palette-item" style="background:#0F172A">#0F172A Darkest</div>
+      <div class="palette-item" style="background:#1E293B">#1E293B Dark</div>
+      <div class="palette-item" style="background:#475569">#475569 Primary</div>
+      <div class="palette-item" style="background:#94A3B8">#94A3B8 Mid</div>
+      <div class="palette-item dark-text-2" style="background:#E2E8F0">#E2E8F0 Light</div>
+      <div class="palette-item dark-text-2" style="background:#F8FAFC">#F8FAFC BG</div>
+    </div>
+
+    <div class="specs-grid">
+      <div class="spec-card">
+        <h3>字体搭配</h3>
+        <p><strong>标题:</strong> Lexend 700 (38px)<br>
+        <strong>正文:</strong> Source Sans 3 400 (15px)<br>
+        <code>font-pairing #16 | Corporate Trust</code></p>
+      </div>
+      <div class="spec-card">
+        <h3>文字效果</h3>
+        <p>背景块: <code>rgba(15,23,42,0.55)</code><br>
+        模糊: 12px | 圆角: 8px<br>
+        背景: 灰度渐变叠层<br>
+        线框纹理: 25px 间隔</p>
+      </div>
+      <div class="spec-card">
+        <h3>适用场景</h3>
+        <p>高级成衣 · 商务男装<br>
+        家居 · 办公用品<br>
+        <code>titleColor: #ffffff | subtitleColor: #ffffff</code></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

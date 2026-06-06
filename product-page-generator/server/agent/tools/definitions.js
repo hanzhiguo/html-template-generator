@@ -250,6 +250,114 @@ const definitions = [
         required: ['image']
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_product_specs',
+      description: '获取指定产品的详细规格参数。返回产品的所有规格信息，包括尺寸、重量、材质、颜色等参数。',
+      parameters: {
+        type: 'object',
+        properties: {
+          product_id: {
+            type: 'number',
+            description: '产品ID'
+          }
+        },
+        required: ['product_id']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'read_product_document',
+      description: '读取产品的文档内容（说明书、规格书、用户手册等）。返回文档的文本内容，用于提取产品信息。',
+      parameters: {
+        type: 'object',
+        properties: {
+          product_id: {
+            type: 'number',
+            description: '产品ID'
+          },
+          doc_type: {
+            type: 'string',
+            description: '文档类型：manual（说明书）、spec（规格书）、all（全部），默认all',
+            enum: ['manual', 'spec', 'all']
+          }
+        },
+        required: ['product_id']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'generate_main_image_content',
+      description: '根据产品信息生成主图所需的文案和参数建议。返回主标题、副标题、卖点文案等，可直接用于主图模板。',
+      parameters: {
+        type: 'object',
+        properties: {
+          product_id: {
+            type: 'number',
+            description: '产品ID'
+          },
+          style: {
+            type: 'string',
+            description: '文案风格：professional（专业）、casual（轻松）、premium（高端），默认professional',
+            enum: ['professional', 'casual', 'premium']
+          },
+          language: {
+            type: 'string',
+            description: '文案语言：zh（中文）、en（英文），默认zh',
+            enum: ['zh', 'en']
+          }
+        },
+        required: ['product_id']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'read_product_md_file',
+      description: '直接读取产品MD规格文档。从MD目录读取产品的规格说明书，包含完整的产品信息、尺寸、卖点、描述等。需要提供产品ID。',
+      parameters: {
+        type: 'object',
+        properties: {
+          product_id: {
+            type: 'number',
+            description: '产品ID（数字）'
+          }
+        },
+        required: ['product_id']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'search_md_files',
+      description: '【重要】搜索MD文档目录中的产品规格文档。当用户通过型号（如SH01、HDD-539）、产品名称（如地形粉、灌木丛）或关键词查找产品时，优先使用此工具。此工具会搜索MD文件夹中的所有.md文件，返回匹配的产品文档信息。',
+      parameters: {
+        type: 'object',
+        properties: {
+          keyword: {
+            type: 'string',
+            description: '搜索关键词，可以是型号（如SH01）、产品名称（如地形粉）、SKU等'
+          },
+          search_content: {
+            type: 'boolean',
+            description: '是否搜索文件内容。默认false只搜索文件名，设为true会搜索文件内容（适用于关键词可能在文档内部的情况）'
+          },
+          include_raw: {
+            type: 'boolean',
+            description: '是否返回原始文档内容。默认false（节省token），设为true会返回原始MD内容（限制3000字符）。当结构化数据不足时设为true'
+          }
+        },
+        required: ['keyword']
+      }
+    }
   }
 ];
 

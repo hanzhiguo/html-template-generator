@@ -74,7 +74,7 @@ class AppBase {
             { name: 'modal', container: 'modal-container' },
             { name: 'data-section', container: 'modal-container', append: true },
             { name: 'preview-modal', container: 'preview-container' },
-            { name: 'ai-chat', container: 'ai-chat-container' },
+            { name: 'ai-chat', container: 'ai-chat-container', scriptOptions: { module: false } },
             { name: 'csv-import', container: 'csv-import-container' }
         ];
 
@@ -91,11 +91,16 @@ class AppBase {
                     } else {
                         container.innerHTML = html;
                     }
-                    await pageLoader.loadComponentScript(comp.name);
+                    await pageLoader.loadComponentScript(comp.name, comp.scriptOptions || {});
                 }
             } catch (e) {
                 console.warn(`Failed to load component: ${comp.name}`, e);
             }
+        }
+
+        // 组件加载完成后触发初始化钩子
+        if (typeof this._onComponentsLoaded === 'function') {
+            await this._onComponentsLoaded();
         }
     }
 

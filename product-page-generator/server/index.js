@@ -29,6 +29,8 @@ const ocrRoutes = require('./routes/ocr');
 const productCreateRoutes = require('./routes/product-create');
 const imageToProductRoutes = require('./routes/image-to-product');
 const mainImageRoutes = require('./routes/main-image');
+const logosRoutes = require('./routes/logos');
+const imageClassifyRoutes = require('./routes/image-classify');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productsRoutes);
@@ -46,6 +48,8 @@ app.use('/api/ocr', ocrRoutes);
 app.use('/api/products', productCreateRoutes);
 app.use('/api/image-to-product', imageToProductRoutes);
 app.use('/api/main-image', mainImageRoutes);
+app.use('/api/logos', logosRoutes);
+app.use('/api/image-classify', imageClassifyRoutes);
 
 // 静态文件
 app.use(express.static(path.join(__dirname, '..', 'public')));

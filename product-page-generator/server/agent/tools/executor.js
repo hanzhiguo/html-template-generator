@@ -4,6 +4,7 @@
  */
 const fs = require('fs').promises;
 const path = require('path');
+const glob = require('glob');
 
 // 使用 getDb() 获取数据库操作接口
 const { getDb, getDatabase } = require('../../db/init');
@@ -52,6 +53,26 @@ async function executeTool(name, args) {
 
       case 'recognize_image_text':
         result = await recognizeImageTool(params.image);
+        break;
+
+      case 'get_product_specs':
+        result = await getProductSpecs(params.product_id);
+        break;
+
+      case 'read_product_document':
+        result = await readProductDocument(params.product_id, params.doc_type);
+        break;
+
+      case 'generate_main_image_content':
+        result = await generateMainImageContent(params.product_id, params.style, params.language);
+        break;
+
+      case 'read_product_md_file':
+        result = await readProductMDFile(params.product_id);
+        break;
+
+      case 'search_md_files':
+        result = await searchMdFiles(params.keyword, params.search_content, params.include_raw);
         break;
 
       default:
@@ -472,7 +493,10 @@ async function createProduct(params) {
 
 module.exports = {
   executeTool,
-  executeTools
+  executeTools,
+  searchMdFiles,
+  generateMainImageContent,
+  parseMDContent
 };
 
 /**
@@ -491,5 +515,588 @@ async function recognizeImageTool(imageBase64) {
       success: false,
       error: error.message
     };
+  }
+}
+
+/**
+ * 获取产品规格参数
+ */
+async function getProductSpecs(productId) {
+  try {
+    const { all, get } = getDb();
+
+    // 获取产品基本信息
+    const product = get('SELECT * FROM products WHERE id = ?', [productId]);
+    if (!product) {
+      return { success: false, error: '产品不存在' };
+    }
+
+    // 获取规格参数
+    const specs = all('SELECT * FROM product_specs WHERE product_id = ? ORDER BY sort_order', [productId]);
+
+    // 获取尺寸信息
+    const dimensions = all('SELECT * FROM product_dimensions WHERE product_id = ? ORDER BY sort_order', [productId]);
+
+    // 获取卖点
+    const highlights = all('SELECT * FROM product_highlights WHERE product_id = ? ORDER BY sort_order', [productId]);
+
+    return {
+      success: true,
+      product: {
+        id: product.id,
+        name: product.name,
+        sku: product.sku,
+        subtitle: product.subtitle,
+        description: product.description
+      },
+      specs: specs.map(s => ({
+        label: s.spec_label,
+        value: s.spec_value,
+        unit: s.spec_unit || '',
+        group: s.spec_group || '规格'
+      })),
+      dimensions: dimensions.map(d => ({
+        label: d.dim_label,
+        value: d.dim_value,
+        unit: d.dim_unit || ''
+      })),
+      highlights: highlights.map(h => ({
+        key: h.highlight_key,
+        value: h.highlight_value
+      })),
+      message: `已获取产品"${product.name}"的规格参数：${specs.length}个规格，${dimensions.length}个尺寸，${highlights.length}个卖点`
+    };
+  } catch (error) {
+    console.error('[getProductSpecs] Error:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * 读取产品文档内容
+ */
+async function readProductDocument(productId, docType = 'all') {
+  try {
+    const { all, get } = getDb();
+
+    // 获取产品信息
+    const product = get('SELECT * FROM products WHERE id = ?', [productId]);
+    if (!product) {
+      return { success: false, error: '产品不存在' };
+    }
+
+    // 获取关联的文档
+    let documents = all(
+      'SELECT * FROM product_documents WHERE product_id = ? ORDER BY sort_order',
+      [productId]
+    );
+
+    if (docType !== 'all') {
+      documents = documents.filter(d => d.doc_type === docType);
+    }
+
+    if (documents.length === 0) {
+      return {
+        success: true,
+        product_id: productId,
+        product_name: product.name,
+        documents: [],
+        message: '该产品暂无关联文档'
+      };
+    }
+
+    // 读取文档内容
+    const rootDir = path.resolve(__dirname, '../../../..');
+    const results = [];
+
+    for (const doc of documents) {
+      try {
+        let content = '';
+        let filePath = doc.file_path;
+
+        // 处理本地文件
+        if (!filePath.startsWith('http')) {
+          const fullPath = path.join(rootDir, filePath);
+          const exists = await fs.access(fullPath).then(() => true).catch(() => false);
+          if (exists) {
+            const fileContent = await fs.readFile(fullPath, 'utf-8');
+            content = fileContent.substring(0, 15000); // 限制长度
+          }
+        }
+
+        results.push({
+          id: doc.id,
+          title: doc.title || path.basename(doc.file_path),
+          type: doc.doc_type,
+          path: doc.file_path,
+          content: content,
+          size: content.length
+        });
+      } catch (e) {
+        results.push({
+          id: doc.id,
+          title: doc.title,
+          type: doc.doc_type,
+          error: '无法读取: ' + e.message
+        });
+      }
+    }
+
+    return {
+      success: true,
+      product_id: productId,
+      product_name: product.name,
+      documents: results,
+      message: `已读取 ${results.length} 个文档`
+    };
+  } catch (error) {
+    console.error('[readProductDocument] Error:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * 生成主图内容
+ */
+async function generateMainImageContent(productId, style = 'professional', language = 'zh') {
+  try {
+    const { all, get } = getDb();
+
+    // 获取产品完整信息
+    const product = get('SELECT * FROM products WHERE id = ?', [productId]);
+    if (!product) {
+      return { success: false, error: '产品不存在' };
+    }
+
+    const specs = all('SELECT * FROM product_specs WHERE product_id = ? ORDER BY sort_order', [productId]);
+    const highlights = all('SELECT * FROM product_highlights WHERE product_id = ? ORDER BY sort_order', [productId]);
+    const dimensions = all('SELECT * FROM product_dimensions WHERE product_id = ? ORDER BY sort_order', [productId]);
+
+    // 构建返回的主图参数
+    const result = {
+      success: true,
+      product_id: productId,
+      product_name: product.name,
+      style: style,
+      language: language,
+
+      // 主图参数 - 可直接用于前端填充
+      main_image_params: {
+        mainTitle: product.name || '',
+        subTitle: product.subtitle || '',
+        titleColor: '#ffffff',
+        subtitleColor: 'rgba(255,255,255,0.85)',
+        titleSize: 56,
+        subtitleSize: 28,
+        position: 'center',
+        vposition: 'center',
+        textShadow: true,
+        textStroke: false,
+        titleBold: true,
+        textBg: false,
+        bgColor: '#f5f5f5',
+        overlayType: 'dark'
+      },
+
+      // 卖点文案（用于多页主图）
+      selling_points: highlights.slice(0, 6).map((h, i) => ({
+        page: i + 1,
+        title: h.highlight_key || '',
+        description: h.highlight_value || ''
+      })),
+
+      // 规格参数（可用于标注）
+      specs_data: specs.map(s => ({
+        label: s.spec_label,
+        value: s.spec_value,
+        unit: s.spec_unit || ''
+      })),
+
+      // 尺寸数据
+      dimension_data: dimensions.map(d => ({
+        label: d.dim_label,
+        value: d.dim_value,
+        unit: d.dim_unit || ''
+      })),
+
+      message: `已生成产品"${product.name}"的主图参数建议`
+    };
+
+    return result;
+  } catch (error) {
+    console.error('[generateMainImageContent] Error:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * 读取产品MD文件（从MD目录）
+ * 支持两种命名格式：产品_XXX_名称.md 和 模型_XXX_名称.md
+ */
+async function readProductMDFile(productId) {
+  try {
+    const { get } = getDb();
+    const product = get('SELECT * FROM products WHERE id = ?', [productId]);
+
+    if (!product) {
+      return { success: false, error: '产品不存在' };
+    }
+
+    // MD目录路径 - 正确计算
+    // executor.js 位于: product-page-generator/server/agent/tools/
+    // MD目录位于: Product Description/MD/
+    // __dirname → 向上4级到达 Product Description
+    const rootDir = path.resolve(__dirname, '../../../..');
+    const mdDir = path.join(rootDir, 'MD');
+
+    // glob需要使用正斜杠路径（Windows兼容）
+    const mdDirNormalized = mdDir.replace(/\\/g, '/');
+
+    console.log('[readProductMDFile] MD目录路径:', mdDirNormalized);
+
+    // 产品ID格式化（补零到3位）
+    const paddedId = String(productId).padStart(3, '0');
+
+    // 可能的文件名模式（按优先级排序）
+    const possibleNames = [
+      // 产品格式：产品_010_地形粉.md
+      `产品_${paddedId}_*.md`,
+      `产品_${paddedId}.md`,
+      // 模型格式：模型_001_沙盘_微缩草簇.md
+      `模型_${paddedId}_*.md`,
+      `模型_${paddedId}.md`,
+      // SKU或名称匹配
+      `${product.sku}.md`,
+      `${product.name}.md`
+    ];
+
+    let mdFile = null;
+    let matchedPattern = null;
+
+    // 使用glob查找文件
+    for (const pattern of possibleNames) {
+      const files = glob.sync(`${mdDirNormalized}/${pattern}`);
+      if (files.length > 0) {
+        mdFile = files[0];
+        matchedPattern = pattern;
+        break;
+      }
+    }
+
+    if (!mdFile) {
+      return {
+        success: false,
+        error: '未找到产品MD文档',
+        product_id: productId,
+        product_name: product.name,
+        searched_dir: mdDir,
+        tried_patterns: possibleNames
+      };
+    }
+
+    const content = await fs.readFile(mdFile, 'utf-8');
+
+    // 解析MD文件内容，提取关键信息
+    const parsedData = parseMDContent(content);
+
+    return {
+      success: true,
+      product_id: productId,
+      product_name: product.name,
+      file_path: mdFile,
+      file_name: path.basename(mdFile),
+      matched_pattern: matchedPattern,
+      content: content,
+      size: content.length,
+      parsed: parsedData,
+      message: `已读取产品MD文档: ${path.basename(mdFile)}`
+    };
+  } catch (error) {
+    console.error('[readProductMDFile] Error:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * 解析MD文件内容，提取关键信息
+ */
+function parseMDContent(content) {
+  const result = {
+    product_name: '',
+    product_name_en: '',
+    model: '',
+    material: '',
+    material_en: '',
+    process: '',
+    process_en: '',
+    category: '',
+    category_en: '',
+    dimensions: [],
+    specs: [],
+    selling_points: [],
+    selling_points_en: [],
+    description: '',
+    description_en: '',
+    sku_colors: [],
+    raw_content: content  // 保留原始内容供AI参考
+  };
+
+  try {
+    // 提取产品名称
+    const nameMatch = content.match(/\*\*产品名称\*\*\s*\|\s*([^\|]+)/);
+    if (nameMatch) result.product_name = nameMatch[1].trim();
+
+    const nameEnMatch = content.match(/\*\*产品名称\*\*\s*\|[^\|]+\|\s*([^\|]+)/);
+    if (nameEnMatch) result.product_name_en = nameEnMatch[1].trim();
+
+    // 提取型号
+    const modelMatch = content.match(/\*\*产品型号\*\*\s*\|\s*([^\|]+)/);
+    if (modelMatch) result.model = modelMatch[1].trim();
+
+    // 提取材质
+    const materialMatch = content.match(/\*\*材质\*\*\s*\|\s*([^\|]+)/);
+    if (materialMatch) result.material = materialMatch[1].trim();
+
+    // 提取工艺
+    const processMatch = content.match(/\*\*工艺\*\*\s*\|\s*([^\|]+)/);
+    if (processMatch) result.process = processMatch[1].trim();
+
+    // 提取分类
+    const categoryMatch = content.match(/\*\*产品分类\*\*\s*\|\s*([^\|]+)/);
+    if (categoryMatch) result.category = categoryMatch[1].trim();
+
+    // 提取尺寸 - 改进版，支持多种格式
+    // 格式1: **长度** | value | ...
+    // 格式2: **Height** | value | ...
+    const dimensionPatterns = [
+      { pattern: /\*\*长度[^*]*\*\*\s*\|\s*([^\|]+)/g, label: '长度' },
+      { pattern: /\*\*宽度[^*]*\*\*\s*\|\s*([^\|]+)/g, label: '宽度' },
+      { pattern: /\*\*高度[^*]*\*\*\s*\|\s*([^\|]+)/g, label: '高度' },
+      { pattern: /\*\*Height\*\*\s*\|\s*([^\|]+)/g, label: '高度/Height' },
+      { pattern: /\*\*Width\*\*\s*\|\s*([^\|]+)/g, label: '宽度/Width' },
+      { pattern: /\*\*Length\*\*\s*\|\s*([^\|]+)/g, label: '长度/Length' },
+      { pattern: /\*\*Diameter\*\*\s*\|\s*([^\|]+)/g, label: '直径/Diameter' },
+      { pattern: /\*\*Branch Diameter\*\*\s*\|\s*([^\|]+)/g, label: '分支直径/Branch Diameter' },
+      { pattern: /\*\*直径[^*]*\*\*\s*\|\s*([^\|]+)/g, label: '直径' },
+    ];
+
+    for (const { pattern, label } of dimensionPatterns) {
+      const matches = content.matchAll(pattern);
+      for (const match of matches) {
+        const value = match[1].trim();
+        if (value && !result.dimensions.find(d => d.value === value)) {
+          result.dimensions.push({ label, value });
+        }
+      }
+    }
+
+    // 提取尺寸规格表格中的所有尺寸
+    const dimSectionMatch = content.match(/## 尺寸规格[\s\S]*?(?=\n##[^#]|$)/);
+    if (dimSectionMatch) {
+      // 匹配表格中的尺寸行: | **Label** | value | ... |
+      const dimRows = dimSectionMatch[0].matchAll(/\|\s*\*\*([^*]+)\*\*\s*\|\s*([^\|]+)/g);
+      for (const row of dimRows) {
+        const label = row[1].trim();
+        const value = row[2].trim();
+        if (value && !result.dimensions.find(d => d.value === value)) {
+          result.dimensions.push({ label, value });
+        }
+      }
+    }
+
+    // 提取卖点
+    const sellingPointsSection = content.match(/## 产品卖点[\s\S]*?(?=\n##[^#]|$)/);
+    if (sellingPointsSection) {
+      // 中文卖点
+      const zhSection = sellingPointsSection[0].match(/### 中文卖点\s*([\s\S]*?)(?=###|##|$)/);
+      if (zhSection) {
+        const points = zhSection[1].match(/\d+\.\s+\*\*([^*]+)\*\*\s*[—\-]\s*([^\n]+)/g);
+        if (points) {
+          result.selling_points = points.map(p => {
+            const m = p.match(/\d+\.\s+\*\*([^*]+)\*\*\s*[—\-]\s*(.+)/);
+            return m ? { title: m[1].trim(), description: m[2].trim() } : null;
+          }).filter(Boolean);
+        }
+      }
+
+      // 英文卖点
+      const enSection = sellingPointsSection[0].match(/### English Selling Points\s*([\s\S]*?)(?=###|##|$)/);
+      if (enSection) {
+        const points = enSection[1].match(/\d+\.\s+\*\*([^*]+)\*\*\s*[—\-]\s*([^\n]+)/g);
+        if (points) {
+          result.selling_points_en = points.map(p => {
+            const m = p.match(/\d+\.\s+\*\*([^*]+)\*\*\s*[—\-]\s*(.+)/);
+            return m ? { title: m[1].trim(), description: m[2].trim() } : null;
+          }).filter(Boolean);
+        }
+      }
+
+      // 兼容：如果没有分中英文，用旧逻辑
+      if (result.selling_points.length === 0) {
+        const points = sellingPointsSection[0].match(/\d+\.\s+\*\*([^*]+)\*\*\s*[—\-]\s*([^\n]+)/g);
+        if (points) {
+          result.selling_points = points.map(p => {
+            const m = p.match(/\d+\.\s+\*\*([^*]+)\*\*\s*[—\-]\s*(.+)/);
+            return m ? { title: m[1].trim(), description: m[2].trim() } : null;
+          }).filter(Boolean);
+        }
+      }
+    }
+
+    // 提取中文描述
+    const descMatch = content.match(/### 中文描述\s+([\s\S]*?)(?=###|##|$)/);
+    if (descMatch) result.description = descMatch[1].trim();
+
+    // 提取英文描述
+    const descEnMatch = content.match(/### English Description\s+([\s\S]*?)(?=###|##|$)/);
+    if (descEnMatch) result.description_en = descEnMatch[1].trim();
+
+    // 提取SKU颜色/规格列表
+    const skuSectionMatch = content.match(/### SKU[^#]*[\s\S]*?(?=###|##|$)/);
+    if (skuSectionMatch) {
+      const skuRows = skuSectionMatch[0].matchAll(/\|\s*(\d+)\s*\|\s*([^\|]+)\s*\|\s*([^\|]+)\s*\|\s*([^\|]+)\s*\|\s*([^\|]+)/g);
+      for (const row of skuRows) {
+        result.sku_colors.push({
+          index: row[1].trim(),
+          name_cn: row[2].trim(),
+          name_en: row[3].trim(),
+          sku_code: row[4].trim(),
+          quantity: row[5].trim()
+        });
+      }
+    }
+
+  } catch (e) {
+    console.error('[parseMDContent] Error:', e.message);
+  }
+
+  return result;
+}
+
+/**
+ * 搜索MD文件
+ * 根据关键词搜索文件名或内容
+ * @param {string} keyword - 搜索关键词
+ * @param {boolean} searchContent - 是否搜索文件内容
+ * @param {boolean} includeRaw - 是否返回原始文档内容（默认false，节省token）
+ */
+async function searchMdFiles(keyword, searchContent = false, includeRaw = false) {
+  try {
+    // 正确计算MD目录路径
+    const rootDir = path.resolve(__dirname, '../../../..');
+    const mdDir = path.join(rootDir, 'MD');
+    const mdDirNormalized = mdDir.replace(/\\/g, '/');
+
+    console.log('[searchMdFiles] MD目录路径:', mdDirNormalized);
+
+    // 获取所有MD文件
+    const allFiles = glob.sync(`${mdDirNormalized}/*.md`);
+
+    if (allFiles.length === 0) {
+      return {
+        success: true,
+        keyword: keyword,
+        results: [],
+        message: 'MD目录中没有找到任何文档'
+      };
+    }
+
+    const results = [];
+    const keywordLower = keyword.toLowerCase();
+
+    for (const filePath of allFiles) {
+      const fileName = path.basename(filePath);
+      let matched = false;
+      let matchType = '';
+
+      // 1. 检查文件名是否匹配
+      if (fileName.toLowerCase().includes(keywordLower)) {
+        matched = true;
+        matchType = 'filename';
+      }
+
+      // 2. 如果文件名不匹配，检查是否需要搜索内容
+      if (!matched && searchContent) {
+        try {
+          const content = await fs.readFile(filePath, 'utf-8');
+          const contentLower = content.toLowerCase();
+
+          if (contentLower.includes(keywordLower)) {
+            matched = true;
+            matchType = 'content';
+          }
+        } catch (e) {
+          console.error(`[searchMdFiles] 读取文件失败: ${fileName}`, e.message);
+        }
+      }
+
+      // 3. 如果匹配，读取并解析文件内容
+      if (matched) {
+        try {
+          const content = await fs.readFile(filePath, 'utf-8');
+          const parsedData = parseMDContent(content);
+          const idMatch = fileName.match(/(?:产品|模型)_(\d+)/);
+          const productId = idMatch ? parseInt(idMatch[1]) : null;
+
+          // 构建返回结果，默认不包含原始内容
+          const result = {
+            file_name: fileName,
+            product_id: productId,
+            match_type: matchType,
+            parsed: {
+              product_name: parsedData.product_name,
+              product_name_en: parsedData.product_name_en,
+              model: parsedData.model,
+              material: parsedData.material,
+              material_en: parsedData.material_en,
+              process: parsedData.process,
+              process_en: parsedData.process_en,
+              category: parsedData.category,
+              category_en: parsedData.category_en,
+              dimensions: parsedData.dimensions,
+              selling_points: parsedData.selling_points,
+              selling_points_en: parsedData.selling_points_en,
+              description: parsedData.description,
+              description_en: parsedData.description_en,
+              sku_colors: parsedData.sku_colors
+            }
+          };
+
+          // 只有明确请求时才返回原始内容，且限制大小
+          if (includeRaw) {
+            // 限制原始内容最大 3000 字符（约 1500 tokens）
+            result.parsed.raw_content = parsedData.raw_content.substring(0, 3000);
+            if (parsedData.raw_content.length > 3000) {
+              result.parsed.raw_content += '\n...[内容已截断]';
+            }
+          }
+
+          results.push(result);
+        } catch (e) {
+          console.error(`[searchMdFiles] 解析文件失败: ${fileName}`, e.message);
+        }
+      }
+    }
+
+    // 排序：文件名匹配优先，内容匹配靠后
+    results.sort((a, b) => {
+      if (a.match_type === 'filename' && b.match_type !== 'filename') return -1;
+      if (a.match_type !== 'filename' && b.match_type === 'filename') return 1;
+      return 0;
+    });
+
+    return {
+      success: true,
+      keyword: keyword,
+      total_files: allFiles.length,
+      matched_count: results.length,
+      results: results,
+      message: results.length > 0 
+        ? `找到 ${results.length} 个匹配的文档` 
+        : `未找到包含 "${keyword}" 的文档`
+    };
+  } catch (error) {
+    console.error('[searchMdFiles] Error:', error.message);
+    throw error;
   }
 }

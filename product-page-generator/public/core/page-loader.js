@@ -34,7 +34,7 @@ class PageLoader {
         return html;
     }
 
-    async loadComponentScript(name) {
+    async loadComponentScript(name, options = {}) {
         const jsUrl = `components/${name}/${name}.js`;
         
         if (this._loadedScripts.has(jsUrl)) {
@@ -42,13 +42,13 @@ class PageLoader {
         }
         
         this._loadedScripts.add(jsUrl);
-        await this._loadScript(jsUrl);
+        await this._loadScript(jsUrl, options);
     }
 
-    _loadScript(src) {
+    _loadScript(src, options = {}) {
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.type = 'module';
+            script.type = options.module !== false ? 'module' : 'text/javascript';
             script.src = src;
             script.onload = () => resolve();
             script.onerror = () => reject(new Error(`Failed to load: ${src}`));
