@@ -93,14 +93,20 @@
         dimTextColor: window.state.dimTextColor,
         dimEndStyle: window.state.dimEndStyle,
         dimTextBg: window.state.dimTextBg,
+        maskAvoidText: window.state.maskAvoidText,
+        maskAvoidMargin: window.state.maskAvoidMargin,
+        brushMaskEnabled: window.state.brushMaskEnabled,
+        brushMaskColor: window.state.brushMaskColor,
+        brushMaskSize: window.state.brushMaskSize,
+        brushMaskOpacity: window.state.brushMaskOpacity,
+        brushMaskVisible: window.state.brushMaskVisible,
+        brushMaskData: typeof serializeBrushMask === 'function' ? serializeBrushMask() : null,
         imageSettings: window.state.images.map(img => ({
           type: img.type || null,
           scale: img.scale || 1,
           offsetX: img.offsetX || 0,
           offsetY: img.offsetY || 0
-        })),
-        layoutRotation: window.state.layoutRotation,
-        layoutMirror: window.state.layoutMirror
+        }))
       }
     };
   }
@@ -258,8 +264,50 @@
     window.state.dimTextColor = settings.dimTextColor;
     window.state.dimEndStyle = settings.dimEndStyle;
     window.state.dimTextBg = settings.dimTextBg;
-    window.state.layoutRotation = settings.layoutRotation || 0;
-    window.state.layoutMirror = settings.layoutMirror || false;
+    window.state.maskAvoidText = settings.maskAvoidText || false;
+    window.state.maskAvoidMargin = settings.maskAvoidMargin || 30;
+    
+    // 恢复涂抹遮罩数据
+    window.state.brushMaskEnabled = settings.brushMaskEnabled || false;
+    window.state.brushMaskColor = settings.brushMaskColor || '#ffffff';
+    window.state.brushMaskSize = settings.brushMaskSize || 40;
+    window.state.brushMaskOpacity = settings.brushMaskOpacity !== undefined ? settings.brushMaskOpacity : 1.0;
+    window.state.brushMaskVisible = settings.brushMaskVisible !== undefined ? settings.brushMaskVisible : true;
+    window.state.brushStrokes = [];
+    if (settings.brushMaskData && typeof deserializeBrushMask === 'function') {
+      deserializeBrushMask(settings.brushMaskData);
+    }
+    
+    // 同步涂抹遮罩UI
+    const brushMaskCheckbox = document.getElementById('brushMaskEnabled');
+    const brushColorInput = document.getElementById('brushColor');
+    const brushColorText = document.getElementById('brushColorText');
+    const brushSizeSlider = document.getElementById('brushSize');
+    const brushSizeVal = document.getElementById('brushSizeVal');
+    const brushOpacitySlider = document.getElementById('brushOpacity');
+    const brushOpacityVal = document.getElementById('brushOpacityVal');
+    if (brushMaskCheckbox) brushMaskCheckbox.checked = window.state.brushMaskEnabled;
+    if (brushColorInput) brushColorInput.value = window.state.brushMaskColor;
+    if (brushColorText) brushColorText.value = window.state.brushMaskColor;
+    if (brushSizeSlider) brushSizeSlider.value = window.state.brushMaskSize;
+    if (brushSizeVal) brushSizeVal.textContent = window.state.brushMaskSize + 'px';
+    if (brushOpacitySlider) brushOpacitySlider.value = Math.round(window.state.brushMaskOpacity * 100);
+    if (brushOpacityVal) brushOpacityVal.textContent = Math.round(window.state.brushMaskOpacity * 100) + '%';
+    
+    // 同步遮罩避让UI
+    const maskAvoidCheckbox = document.getElementById('maskAvoidText');
+    const maskAvoidStatus = document.getElementById('maskAvoidStatus');
+    const maskAvoidMarginRow = document.getElementById('maskAvoidMarginRow');
+    const maskAvoidMarginSlider = document.getElementById('maskAvoidMargin');
+    const maskAvoidMarginVal = document.getElementById('maskAvoidMarginVal');
+    if (maskAvoidCheckbox) maskAvoidCheckbox.checked = window.state.maskAvoidText;
+    if (maskAvoidStatus) {
+      maskAvoidStatus.textContent = window.state.maskAvoidText ? '开启' : '关闭';
+      maskAvoidStatus.style.color = window.state.maskAvoidText ? '#3b82f6' : '#9ca3af';
+    }
+    if (maskAvoidMarginRow) maskAvoidMarginRow.style.display = window.state.maskAvoidText ? 'block' : 'none';
+    if (maskAvoidMarginSlider) maskAvoidMarginSlider.value = window.state.maskAvoidMargin;
+    if (maskAvoidMarginVal) maskAvoidMarginVal.textContent = window.state.maskAvoidMargin + 'px';
     
     if (settings.imageSettings) {
       window.state.pendingImageSettings = settings.imageSettings;

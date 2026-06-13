@@ -982,12 +982,14 @@ function parseMDContent(content) {
  */
 async function searchMdFiles(keyword, searchContent = false, includeRaw = false) {
   try {
-    // 正确计算MD目录路径
+    // 使用配置文件中的目录设置
+    const config = require('../config');
     const rootDir = path.resolve(__dirname, '../../../..');
-    const mdDir = path.join(rootDir, 'MD');
+    const mdDirName = config.mdDocsDir || 'MD';
+    const mdDir = path.join(rootDir, mdDirName);
     const mdDirNormalized = mdDir.replace(/\\/g, '/');
 
-    console.log('[searchMdFiles] MD目录路径:', mdDirNormalized);
+    console.log('[searchMdFiles] MD目录路径:', mdDirNormalized, '(配置: mdDocsDir =', mdDirName, ')');
 
     // 获取所有MD文件
     const allFiles = glob.sync(`${mdDirNormalized}/*.md`);

@@ -145,6 +145,22 @@
       return;
     }
     
+    // === 收集当前预览中每个slot位置的图片调整数据 ===
+    // 用于后续批量导出时复用这些调整数据
+    const slotAdjustData = {};
+    for (let i = 0; i < templateCount; i++) {
+      const type = slotTypes[i];
+      // 找到当前预览中该slot位置对应的图片
+      const currentSlotImg = window.state.images.find(img => img.type === type);
+      if (currentSlotImg) {
+        slotAdjustData[type] = {
+          scale: currentSlotImg.scale || 1,
+          offsetX: currentSlotImg.offsetX || 0,
+          offsetY: currentSlotImg.offsetY || 0
+        };
+      }
+    }
+    
     const progressEl = document.getElementById('batchProgress');
     const progressBar = document.getElementById('batchProgressBar');
     const progressText = document.getElementById('batchProgressText');
@@ -163,12 +179,25 @@
     
     for (let r = 0; r < genCount; r++) {
       // 构建当前批次的图片列表：按slotTypes顺序，每个slot取对应类型的第r张
+      // 同时复用当前预览中该类型的调整数据
       const batchImages = [];
       for (let i = 0; i < templateCount; i++) {
         const type = slotTypes[i];
         const imgs = typeImageLists[type] || [];
         if (imgs.length > 0) {
-          batchImages.push(imgs[r % imgs.length]);
+          const imgObj = imgs[r % imgs.length];
+          // 复用当前预览中该类型的调整数据
+          const adjustData = slotAdjustData[type];
+          if (adjustData) {
+            batchImages.push({
+              ...imgObj,
+              scale: adjustData.scale,
+              offsetX: adjustData.offsetX,
+              offsetY: adjustData.offsetY
+            });
+          } else {
+            batchImages.push(imgObj);
+          }
         }
       }
       
@@ -229,10 +258,10 @@
       const origImages = [...window.state.images];
       const origDisplayScale = window.displayScale;
       const origDimensions = window.state.dimensions;
-      const origRenderCtx = window.renderCtx;
+      const origRenderCtx = window._renderCtx;
       
       window.state.images = batchImageObjs;
-      window.renderCtx = tempCtx;
+      window._renderCtx = tempCtx;
       
       tempCtx.save();
       tempCtx.scale(SCALE, SCALE);
@@ -253,7 +282,7 @@
       }
       
       tempCtx.restore();
-      window.renderCtx = origRenderCtx;
+      window._renderCtx = origRenderCtx;
       window.state.images = origImages;
       window.state.dimensions = origDimensions;
       window.displayScale = origDisplayScale;

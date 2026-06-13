@@ -7,7 +7,7 @@
   'use strict';
 
   // 配色方案定义
-  // 方案 1-2: 基础保留 | 方案 3-8: 从设计模板提取
+  // 方案 1-2: 基础保留 | 方案 3-8: 从设计模板提取 | 方案 9: 森林深绿主题
   const colorSchemes = [
     // === 基础保留 ===
     { name: '经典白', accent: '#ffffff', titleColor: '#ffffff', subtitleColor: '#f3f4f6', textBg: true, textBgColor: 'rgba(0,0,0,0.55)', shadow: true, stroke: false, dimColor: '#ffffff', dimTextColor: '#ffffff' },
@@ -30,6 +30,9 @@
     // === 模板6 · 高级灰 (Neutral Gray / Corporate Trust) ===
     // 灰度层级 #0F172A → #F8FAFC | 柔和叠层 | 沉稳信赖
     { name: '高级灰', accent: '#64748B', titleColor: '#f1f5f9', subtitleColor: '#94a3b8', textBg: true, textBgColor: 'rgba(15,23,42,0.55)', shadow: true, stroke: false, dimColor: '#94a3b8', dimTextColor: '#94a3b8' },
+    // === 模板7 · 森林深绿 (Diorama / Miniature) ===
+    // 主背景 #136F35 | 主标题 #EBE0C2 | 副标题 #D8CCAE | 沙盘微缩模型主题
+    { name: '森林深绿', accent: '#136F35', titleColor: '#EBE0C2', subtitleColor: '#D8CCAE', textBg: true, textBgColor: 'rgba(19,111,53,0.55)', shadow: true, stroke: false, dimColor: '#EBE0C2', dimTextColor: '#D8CCAE' },
   ];
 
   /**
@@ -129,7 +132,7 @@
 
     // === 立即强制重新渲染 ===
     // 1. 清除任何渲染缓存
-    window.renderCtx = null;
+    window._renderCtx = null;
     
     // 2. 如果有标注，先清空Konva层防止重叠
     if (window.konvaStage) {

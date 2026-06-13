@@ -4,7 +4,7 @@
  */
 
 // 模板布局配置（按图片数量索引）
-window.templates = {
+var templates = {
   1: { layouts: [{ x: 0, y: 0, w: 1024, h: 1024 }] },
   2: { layouts: [{ x: 0, y: 0, w: 512, h: 1024 }, { x: 512, y: 0, w: 512, h: 1024 }] },
   3: { layouts: [{ x: 0, y: 0, w: 1024, h: 512 }, { x: 0, y: 512, w: 512, h: 512 }, { x: 512, y: 512, w: 512, h: 512 }] },
@@ -64,7 +64,7 @@ window.templates = {
 };
 
 // 文字预设位置配置
-window.presets = {
+var presets = {
   topLeft: { textAlign: 'left', textVAlign: 'top', textX: 60, textY: 80 },
   top: { textAlign: 'center', textVAlign: 'top', textX: 512, textY: 80 },
   topRight: { textAlign: 'right', textVAlign: 'top', textX: 964, textY: 80 },

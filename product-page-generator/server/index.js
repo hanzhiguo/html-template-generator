@@ -31,6 +31,7 @@ const imageToProductRoutes = require('./routes/image-to-product');
 const mainImageRoutes = require('./routes/main-image');
 const logosRoutes = require('./routes/logos');
 const imageClassifyRoutes = require('./routes/image-classify');
+const jimengRoutes = require('./routes/jimeng');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productsRoutes);
@@ -50,6 +51,7 @@ app.use('/api/image-to-product', imageToProductRoutes);
 app.use('/api/main-image', mainImageRoutes);
 app.use('/api/logos', logosRoutes);
 app.use('/api/image-classify', imageClassifyRoutes);
+app.use('/api/jimeng', jimengRoutes);
 
 // 静态文件
 app.use(express.static(path.join(__dirname, '..', 'public')));

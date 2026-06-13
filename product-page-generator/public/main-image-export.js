@@ -6,8 +6,8 @@
 (function() {
   'use strict';
 
-  // 当前导出格式
-  let currentExportFormat = 'png';
+  // 当前导出格式（暴露到 window）
+  window.currentExportFormat = 'png';
 
   /**
    * 打开设置弹窗
@@ -45,7 +45,7 @@
    * 选择导出格式
    */
   function selectExportFormat(format, btn) {
-    currentExportFormat = format;
+    window.currentExportFormat = format;
     document.querySelectorAll('.export-format-btn').forEach(b => {
       b.style.borderColor = '#d1d5db';
       b.style.background = '#fff';
@@ -65,7 +65,7 @@
   function exportFromModal() {
     closeSettingsModal();
     const quality = document.getElementById('exportQuality')?.value || 92;
-    window.exportImage(currentExportFormat, parseInt(quality) / 100);
+    window.exportImage(window.currentExportFormat, parseInt(quality) / 100);
   }
 
   /**
@@ -81,8 +81,7 @@
     setTimeout(() => toast.remove(), 2500);
   }
 
-  // 暴露到全局
-  window.currentExportFormat = currentExportFormat;
+  // 暴露函数到全局
   window.openSettingsModal = openSettingsModal;
   window.closeSettingsModal = closeSettingsModal;
   window.updateExportSizeFromModal = updateExportSizeFromModal;

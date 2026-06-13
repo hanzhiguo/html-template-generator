@@ -6,6 +6,43 @@
 (function() {
   'use strict';
 
+  // 预览图最大边长（预览canvas是1024，预览图不需要更大）
+  const PREVIEW_MAX_SIZE = 1024;
+
+  /**
+   * 创建低分辨率预览版Image对象
+   * @param {HTMLImageElement} originalImg 原始图片
+   * @param {string} originalSrc 原始base64 src
+   * @returns {{ previewImg: HTMLImageElement, previewSrc: string }}
+   */
+  function createPreviewImage(originalImg, originalSrc) {
+    const w = originalImg.naturalWidth || originalImg.width;
+    const h = originalImg.naturalHeight || originalImg.height;
+    const maxDim = Math.max(w, h);
+
+    // 如果原图本身就小于预览尺寸，直接用原图
+    if (maxDim <= PREVIEW_MAX_SIZE) {
+      return { previewImg: originalImg, previewSrc: originalSrc };
+    }
+
+    // 缩放到PREVIEW_MAX_SIZE
+    const ratio = PREVIEW_MAX_SIZE / maxDim;
+    const tw = Math.round(w * ratio);
+    const th = Math.round(h * ratio);
+
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = tw;
+    tempCanvas.height = th;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.drawImage(originalImg, 0, 0, tw, th);
+
+    const previewSrc = tempCanvas.toDataURL('image/jpeg', 0.85);
+    const previewImg = new Image();
+    previewImg.src = previewSrc;
+
+    return { previewImg, previewSrc };
+  }
+
   /**
    * 处理文件上传
    */
@@ -18,9 +55,14 @@
       reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
+          // 创建低分辨率预览版本
+          const { previewImg, previewSrc } = createPreviewImage(img, e.target.result);
+
           window.state.images.push({ 
-            src: e.target.result, 
-            img: img, 
+            src: previewSrc,        // 低分辨率src，用于缩略图列表
+            img: previewImg,        // 低分辨率Image，用于预览canvas渲染
+            imgOriginal: img,       // 原始Image，用于导出
+            srcOriginal: e.target.result, // 原始base64，用于导出
             name: file.name,
             type: null,  // 上传时不区分类型，由AI自动分类
             scale: 1,
@@ -83,12 +125,14 @@
       
       // 渲染图片缩略图
       list.innerHTML = typeImages.map(({ img, i }) => {
+        const isSelected = window.state.multiSelectedIndices.includes(i);
         return `
-        <div class="image-item ${window.state.multiSelectedIndices.includes(i) ? 'selected' : ''}" 
+        <div class="image-item ${isSelected ? 'selected' : ''}"
              data-image-index="${i}"
-             onclick="onImageListClick(${i}, event)" 
-             draggable="true" 
+             onclick="onImageListClick(${i}, event)"
+             draggable="true"
              style="${window.state.batchMode ? 'padding-bottom:28px;' : ''}">
+          <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleImageSelect(${i}, event)" title="选择/取消选择">
           <img src="${img.src}" alt="" draggable="false">
           <span class="order">${i + 1}</span>
           ${window.state.batchMode ? `<div style="position:absolute;bottom:2px;left:2px;right:2px;display:flex;gap:2px;z-index:3;">
@@ -248,24 +292,100 @@
   }
 
   /**
-   * 图片列表点击（支持Shift多选）
+   * 图片列表点击（支持Ctrl/Cmd多选、Shift范围选）
    */
   function onImageListClick(index, event) {
-    if (event && event.shiftKey) {
-      // Shift+点击：多选/取消选择
+    if (event && (event.ctrlKey || event.metaKey)) {
+      // Ctrl/Cmd+点击：切换选中
       const idx = window.state.multiSelectedIndices.indexOf(index);
       if (idx > -1) {
         window.state.multiSelectedIndices.splice(idx, 1);
+        if (window.state.multiSelectedIndices.length === 0) {
+          window.state.multiSelectedIndices = [index];
+        }
       } else {
         window.state.multiSelectedIndices.push(index);
       }
-      if (window.state.multiSelectedIndices.length > 0) {
-        setActiveImage(window.state.multiSelectedIndices[window.state.multiSelectedIndices.length - 1]);
+      setActiveImage(window.state.multiSelectedIndices[window.state.multiSelectedIndices.length - 1]);
+    } else if (event && event.shiftKey) {
+      // Shift+点击：范围选择（从上次活跃图片到当前图片）
+      const lastIdx = window.state.activeImageIndex;
+      if (lastIdx >= 0 && lastIdx !== index) {
+        const start = Math.min(lastIdx, index);
+        const end = Math.max(lastIdx, index);
+        for (let i = start; i <= end; i++) {
+          if (!window.state.multiSelectedIndices.includes(i)) {
+            window.state.multiSelectedIndices.push(i);
+          }
+        }
+      } else {
+        if (!window.state.multiSelectedIndices.includes(index)) {
+          window.state.multiSelectedIndices.push(index);
+        }
       }
+      setActiveImage(index);
     } else {
       // 普通点击：清除多选，设为活跃
       window.state.multiSelectedIndices = [index];
       setActiveImage(index);
+    }
+    updateImageAdjustPanelForMulti();
+    renderImageList();
+    window.render();
+  }
+
+  /**
+   * 复选框切换选中
+   */
+  function toggleImageSelect(index, event) {
+    const idx = window.state.multiSelectedIndices.indexOf(index);
+    if (idx > -1 && window.state.multiSelectedIndices.length > 1) {
+      // 取消选中
+      window.state.multiSelectedIndices.splice(idx, 1);
+    } else if (idx === -1) {
+      // 添加选中
+      window.state.multiSelectedIndices.push(index);
+    }
+    if (window.state.multiSelectedIndices.length > 0) {
+      setActiveImage(window.state.multiSelectedIndices[window.state.multiSelectedIndices.length - 1]);
+    }
+    updateImageAdjustPanelForMulti();
+    renderImageList();
+    window.render();
+  }
+
+  /**
+   * 按类型全选图片
+   * @param {string|null} type 图片类型：'scene', 'white', 'set', 'detail', null(未分类)
+   */
+  function selectAllOfType(type) {
+    // 找到该类型的所有图片索引
+    const indices = window.state.images
+      .map((img, i) => ({ img, i }))
+      .filter(item => item.img.type === type)
+      .map(item => item.i);
+
+    if (indices.length === 0) {
+      window.showToast('该类型没有图片', true);
+      return;
+    }
+
+    // 检查是否已经全选了该类型
+    const alreadySelected = indices.every(i => window.state.multiSelectedIndices.includes(i));
+
+    if (alreadySelected && window.state.multiSelectedIndices.length === indices.length) {
+      // 已经全选且只有该类型，则取消全选
+      window.state.multiSelectedIndices = [];
+      window.showToast('已取消全选');
+    } else {
+      // 全选该类型
+      window.state.multiSelectedIndices = indices;
+      const typeNames = { scene: '场景图', white: '白底图', set: '套装图', detail: '细节图' };
+      window.showToast(`已全选 ${typeNames[type] || '未分类'} 组 (${indices.length}张)`);
+    }
+
+    if (window.state.multiSelectedIndices.length > 0) {
+      setActiveImage(window.state.multiSelectedIndices[window.state.multiSelectedIndices.length - 1]);
     }
     updateImageAdjustPanelForMulti();
     renderImageList();
@@ -317,15 +437,41 @@
   function onImageAdjust() {
     const idx = window.state.activeImageIndex;
     if (idx < 0 || idx >= window.state.images.length) return;
-    
-    const scale = parseInt(document.getElementById('imgScaleValue').value) / 100;
-    const offsetX = parseInt(document.getElementById('imgOffsetX').value);
-    const offsetY = parseInt(document.getElementById('imgOffsetY').value);
-    
-    document.getElementById('imgScaleDisplay').value = Math.round(scale * 100);
-    document.getElementById('imgOffsetXDisplay').value = offsetX;
-    document.getElementById('imgOffsetYDisplay').value = offsetY;
-    
+
+    const scaleRange = document.getElementById('imgScaleValue');
+    const scaleNum = document.getElementById('imgScaleDisplay');
+    const offsetXRange = document.getElementById('imgOffsetX');
+    const offsetXNum = document.getElementById('imgOffsetXDisplay');
+    const offsetYRange = document.getElementById('imgOffsetY');
+    const offsetYNum = document.getElementById('imgOffsetYDisplay');
+
+    // 判断哪个输入框触发了变化，以该输入框的值为准同步到另一个
+    let scale, offsetX, offsetY;
+
+    if (document.activeElement === scaleNum) {
+      scale = (parseInt(scaleNum.value) || 100) / 100;
+      scaleRange.value = Math.round(scale * 100);
+    } else {
+      scale = (parseInt(scaleRange.value) || 100) / 100;
+      scaleNum.value = Math.round(scale * 100);
+    }
+
+    if (document.activeElement === offsetXNum) {
+      offsetX = parseInt(offsetXNum.value) || 0;
+      offsetXRange.value = offsetX;
+    } else {
+      offsetX = parseInt(offsetXRange.value) || 0;
+      offsetXNum.value = offsetX;
+    }
+
+    if (document.activeElement === offsetYNum) {
+      offsetY = parseInt(offsetYNum.value) || 0;
+      offsetYRange.value = offsetY;
+    } else {
+      offsetY = parseInt(offsetYRange.value) || 0;
+      offsetYNum.value = offsetY;
+    }
+
     // 如果多选，调整所有选中图片
     if (window.state.multiSelectedIndices.length > 1) {
       window.state.multiSelectedIndices.forEach(i => {
@@ -421,6 +567,8 @@
   window.bindDropZoneEvents = bindDropZoneEvents;
   window.handleTypeDrop = handleTypeDrop;
   window.onImageListClick = onImageListClick;
+  window.toggleImageSelect = toggleImageSelect;
+  window.selectAllOfType = selectAllOfType;
   window.updateImageAdjustPanelForMulti = updateImageAdjustPanelForMulti;
   window.setActiveImage = setActiveImage;
   window.onImageAdjust = onImageAdjust;

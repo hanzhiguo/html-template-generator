@@ -34,5 +34,8 @@ module.exports = {
     mdDir: process.env.KB_MD_DIR || 'knowledge',
     // 搜索结果数量
     searchLimit: 5
-  }
+  },
+
+  // MD 产品文档目录（用于 search_md_files 工具）
+  mdDocsDir: process.env.MD_DOCS_DIR || 'MD'
 };

@@ -85,7 +85,7 @@ function getImageIndexAtPosition(x, y) {
   const layouts = getCurrentLayouts();
   
   const gap = state.imageGap * 2;
-  const adjustedLayouts = adjustLayoutsWithGap(layouts, gap);
+  const adjustedLayouts = adjustLayoutsAvoidText(adjustLayoutsWithGap(layouts, gap));
   
   // 从后往前遍历，优先匹配上层小区域（如圆形副图覆盖在主图上方）
   for (let i = adjustedLayouts.length - 1; i >= 0; i--) {
@@ -111,6 +111,8 @@ function swapImages(index1, index2) {
   const tempScale = img1.scale;
   const tempOffsetX = img1.offsetX;
   const tempOffsetY = img1.offsetY;
+  const tempImgOriginal = img1.imgOriginal;
+  const tempSrcOriginal = img1.srcOriginal;
   
   img1.img = img2.img;
   img1.name = img2.name;
@@ -118,6 +120,8 @@ function swapImages(index1, index2) {
   img1.scale = img2.scale;
   img1.offsetX = img2.offsetX;
   img1.offsetY = img2.offsetY;
+  img1.imgOriginal = img2.imgOriginal;
+  img1.srcOriginal = img2.srcOriginal;
   
   img2.img = tempImg;
   img2.name = tempName;
@@ -125,6 +129,8 @@ function swapImages(index1, index2) {
   img2.scale = tempScale;
   img2.offsetX = tempOffsetX;
   img2.offsetY = tempOffsetY;
+  img2.imgOriginal = tempImgOriginal;
+  img2.srcOriginal = tempSrcOriginal;
   
   renderImageList();
   showToast(`已交换图片 ${index1 + 1} 和 ${index2 + 1} 的显示位置`);
@@ -134,6 +140,93 @@ function adjustLayoutsWithGap(layouts, gap) {
   if (gap === 0) return layouts;
   const halfGap = gap / 2;
   return layouts.map(l => ({ x: l.x + halfGap, y: l.y + halfGap, w: l.w - gap, h: l.h - gap }));
+}
+
+// 应用布局变换（已移除偏移/缩放/旋转/镜像功能）
+function adjustLayoutsTransform(layouts) {
+  return layouts;
+}
+
+// 遮罩避让文字：根据文字边界框缩小遮罩区域
+function adjustLayoutsAvoidText(layouts) {
+  if (!state.maskAvoidText || !state.textLayerVisible) return layouts;
+  
+  const textBBox = getTextBoundingBox();
+  if (!textBBox) return layouts;
+  
+  const margin = state.maskAvoidMargin || 0;
+  // 文字区域（含间距）
+  const textRect = {
+    x: textBBox.x - margin,
+    y: textBBox.y - margin,
+    w: textBBox.w + margin * 2,
+    h: textBBox.h + margin * 2
+  };
+  
+  return layouts.map(l => {
+    // 检测遮罩与文字区域是否重叠
+    const overlapX = l.x < textRect.x + textRect.w && l.x + l.w > textRect.x;
+    const overlapY = l.y < textRect.y + textRect.h && l.y + l.h > textRect.y;
+    
+    if (!overlapX || !overlapY) return l; // 无重叠，不调整
+    
+    // 计算各方向的裁剪量
+    let newX = l.x, newY = l.y, newW = l.w, newH = l.h;
+    
+    // 从上方裁剪（文字在遮罩上方）
+    if (textRect.y <= l.y + l.h && textRect.y + textRect.h >= l.y) {
+      // 文字在遮罩内部或部分重叠
+      const overlapTop = textRect.y + textRect.h - l.y;
+      const overlapBottom = l.y + l.h - textRect.y;
+      const overlapLeft = textRect.x + textRect.w - l.x;
+      const overlapRight = l.x + l.w - textRect.x;
+      
+      // 选择裁剪量最小的方向（最小侵入原则）
+      const minOverlap = Math.min(overlapTop, overlapBottom, overlapLeft, overlapRight);
+      
+      if (minOverlap === overlapTop && overlapTop < l.h) {
+        // 从上方裁剪
+        newY = textRect.y + textRect.h;
+        newH = l.y + l.h - newY;
+      } else if (minOverlap === overlapBottom && overlapBottom < l.h) {
+        // 从下方裁剪
+        newH = textRect.y - l.y;
+      } else if (minOverlap === overlapLeft && overlapLeft < l.w) {
+        // 从左侧裁剪
+        newX = textRect.x + textRect.w;
+        newW = l.x + l.w - newX;
+      } else if (minOverlap === overlapRight && overlapRight < l.w) {
+        // 从右侧裁剪
+        newW = textRect.x - l.x;
+      }
+    }
+    
+    // 确保遮罩不会变成负值
+    if (newW < 20 || newH < 20) return l; // 太小则不避让
+    
+    return { x: newX, y: newY, w: newW, h: newH };
+  });
+}
+
+// 变换单个坐标点（已移除变换功能）
+function transformPoint(x, y) {
+  return { x, y };
+}
+
+// 变换尺寸（已移除变换功能）
+function transformSize(w, h) {
+  return { w, h };
+}
+
+// 应用布局偏移/缩放到canvas上下文（已移除变换功能）
+function applyLayoutOffsetScale(ctx) {
+  // 无变换
+  return false;
+}
+
+// 恢复canvas上下文（已移除变换功能）
+function restoreLayoutOffsetScale(ctx) {
+  // 无变换
 }
 
 // ========== 绘图工具函数 ==========
@@ -157,7 +250,9 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 function drawImageCover(imgObj, x, y, w, h) {
-  const img = imgObj.img || imgObj;
+  // 导出时使用原始分辨率图片，预览时使用低分辨率图片
+  const isExport = !!window._renderCtx;
+  const img = (isExport && imgObj.imgOriginal) ? imgObj.imgOriginal : (imgObj.img || imgObj);
   const scale = imgObj.scale || 1;
   const offsetX = imgObj.offsetX || 0;
   const offsetY = imgObj.offsetY || 0;
@@ -203,7 +298,9 @@ function drawImageCover(imgObj, x, y, w, h) {
 }
 
 function drawImageCoverInCircle(imgObj, x, y, w, h) {
-  const img = imgObj.img || imgObj;
+  // 导出时使用原始分辨率图片，预览时使用低分辨率图片
+  const isExport = !!window._renderCtx;
+  const img = (isExport && imgObj.imgOriginal) ? imgObj.imgOriginal : (imgObj.img || imgObj);
   const scale = imgObj.scale || 1;
   const offsetX = imgObj.offsetX || 0;
   const offsetY = imgObj.offsetY || 0;
@@ -519,6 +616,66 @@ function drawLogo() {
   }
 }
 
+// ========== 数量文字绘制 ==========
+
+function drawNumberText() {
+  if (!state.numberText || !state.numberTextVisible) return;
+
+  const c = getCtx();
+  c.save();
+
+  const fontSize = state.numberTextSize;
+  const fontStyle = state.numberTextItalic ? 'italic' : 'normal';
+  const fontWeight = state.numberTextWeight;
+  const fontStr = `${fontStyle} ${fontWeight} ${fontSize}px ${state.numberTextFont}`;
+
+  c.font = fontStr;
+  c.textAlign = 'right';
+  c.textBaseline = 'top';
+
+  // 阴影
+  if (state.shadow) {
+    c.shadowColor = 'rgba(0,0,0,0.5)';
+    c.shadowBlur = 8;
+    c.shadowOffsetX = 2;
+    c.shadowOffsetY = 2;
+  }
+
+  // 描边
+  if (state.stroke) {
+    c.strokeStyle = 'rgba(0,0,0,0.8)';
+    c.lineWidth = 2;
+    c.strokeText(state.numberText, state.numberTextX, state.numberTextY);
+  }
+
+  c.fillStyle = state.numberTextColor;
+  c.fillText(state.numberText, state.numberTextX, state.numberTextY);
+
+  c.restore();
+}
+
+// 获取数量文字的边界框（用于拖拽）
+function getNumberTextBBox() {
+  if (!state.numberText || !state.numberTextVisible) return null;
+
+  const c = getCtx();
+  const fontSize = state.numberTextSize;
+  const fontStyle = state.numberTextItalic ? 'italic' : 'normal';
+  const fontWeight = state.numberTextWeight;
+  const fontStr = `${fontStyle} ${fontWeight} ${fontSize}px ${state.numberTextFont}`;
+
+  c.font = fontStr;
+  const textWidth = c.measureText(state.numberText).width;
+  const padding = 10;
+
+  return {
+    x: state.numberTextX - textWidth - padding,
+    y: state.numberTextY - padding,
+    w: textWidth + padding * 2,
+    h: fontSize + padding * 2
+  };
+}
+
 // ========== 尺寸标注 Canvas 绘制 ==========
 
 function drawDimensionsOnCanvas() {
@@ -756,7 +913,7 @@ function drawDragIndicator() {
   const layouts = getCurrentLayouts();
   
   const gap = state.imageGap * 2;
-  const adjustedLayouts = adjustLayoutsWithGap(layouts, gap);
+  const adjustedLayouts = adjustLayoutsAvoidText(adjustLayoutsWithGap(layouts, gap));
   const layout = adjustedLayouts[state.dragState.dropIndex];
   
   if (!layout) return;
@@ -775,7 +932,7 @@ function drawDragIndicator() {
 function drawActiveImageIndicator(imageIndex) {
   const layouts = getCurrentLayouts();
   const gap = state.imageGap * 2;
-  const adjustedLayouts = adjustLayoutsWithGap(layouts, gap);
+  const adjustedLayouts = adjustLayoutsAvoidText(adjustLayoutsWithGap(layouts, gap));
   const layout = adjustedLayouts[imageIndex];
   if (!layout) return;
   
@@ -803,7 +960,7 @@ function drawActiveImageIndicator(imageIndex) {
 function drawSlotTypeLabels() {
   const layouts = getCurrentLayouts();
   const gap = state.imageGap * 2;
-  const adjustedLayouts = adjustLayoutsWithGap(layouts, gap);
+  const adjustedLayouts = adjustLayoutsAvoidText(adjustLayoutsWithGap(layouts, gap));
   
   const typeLabels = { scene: '场景', white: '白底', set: '套装', detail: '细节' };
   const typeColors = { scene: '#10b981', white: '#6b7280', set: '#8b5cf6', detail: '#f59e0b' };
@@ -850,6 +1007,8 @@ function render() {
   targetCtx.fillStyle = state.bgColor;
   targetCtx.fillRect(0, 0, 1024, 1024);
   
+  // 旋转/镜像已整合到 adjustLayoutsTransform/transformPoint 中，只变换遮罩，不变换图片
+  
   if (state.templateCount === 2 && state.twoImageStyle === 'circle') {
     renderCircleStyle();
   } else if (state.templateCount === 2 && state.twoImageStyle === 'detail') {
@@ -866,10 +1025,31 @@ function render() {
     renderNormalStyle();
   }
   
+  // 叠加涂抹遮罩层（在文字/LOGO之前，这样涂抹不会遮住文字）
+  if (typeof compositeMaskCanvas === 'function') { compositeMaskCanvas(targetCtx); }
+  
   if (state.textLayerVisible && (state.mainTitle || state.subTitle)) { drawText(); }
   
+  // 绘制数量文字
+  drawNumberText();
+  
+  // 绘制数量文字选中框（仅预览时显示）
+  if (!window._renderCtx && state.numberTextVisible && state.numberText) {
+    const nbb = getNumberTextBBox();
+    if (nbb) {
+      const c = getCtx();
+      c.save();
+      c.strokeStyle = '#8b5cf6';
+      c.lineWidth = 1.5;
+      c.setLineDash([4, 3]);
+      c.strokeRect(nbb.x, nbb.y, nbb.w, nbb.h);
+      c.setLineDash([]);
+      c.restore();
+    }
+  }
+  
   // 绘制文字选中框和控制点（仅预览时显示，导出时不显示）
-  if (!renderCtx && state.textLayerVisible && (state.mainTitle || state.subTitle)) {
+  if (!window._renderCtx && state.textLayerVisible && (state.mainTitle || state.subTitle)) {
     const bb = getTextBoundingBox();
     if (bb) {
       const c = getCtx();
@@ -901,15 +1081,17 @@ function render() {
   
   if (state.dimEnabled && state.dimensions.length > 0) { drawDimensionsOnCanvas(); }
   
+  // 以下UI元素（拖拽指示器、slotType标签、选中框）已使用 adjustLayoutsTransform，自动跟随遮罩变换
+  
   if (state.dragState.isDragging) { drawDragIndicator(); }
   
   // 绘制每个位置的slotType标记
-  if (!renderCtx && state.slotTypes && state.slotTypes.length > 0) {
+  if (!window._renderCtx && state.slotTypes && state.slotTypes.length > 0) {
     drawSlotTypeLabels();
   }
   
   // 绘制活跃图片选中框（仅预览时显示）
-  if (!renderCtx && state.multiSelectedIndices && state.multiSelectedIndices.length > 0) {
+  if (!window._renderCtx && state.multiSelectedIndices && state.multiSelectedIndices.length > 0) {
     state.multiSelectedIndices.forEach(idx => {
       if (idx >= 0 && idx < state.templateCount) {
         drawActiveImageIndicator(idx);
@@ -933,20 +1115,39 @@ function renderNormalStyle() {
   }
   
   const gap = state.imageGap * 2;
-  const adjustedLayouts = adjustLayoutsWithGap(layouts, gap);
+  const originalLayouts = adjustLayoutsWithGap(layouts, gap);
+  const avoidedLayouts = adjustLayoutsAvoidText(originalLayouts);
+  const hasAvoid = originalLayouts !== avoidedLayouts;
   
-  adjustedLayouts.forEach((layout, i) => {
+  const c = getCtx();
+  originalLayouts.forEach((origLayout, i) => {
+    const maskLayout = hasAvoid ? avoidedLayouts[i] : origLayout;
+    
     if (state.images[i]) {
-      drawImageWithEffects(state.images[i], layout.x, layout.y, layout.w, layout.h);
+      c.save();
+      // 用避让后的布局做遮罩裁剪
+      if (hasAvoid || state.imageRadius > 0) {
+        if (state.imageRadius > 0) {
+          c.beginPath();
+          roundRect(c, maskLayout.x, maskLayout.y, maskLayout.w, maskLayout.h, state.imageRadius * 2);
+          c.clip();
+        } else {
+          c.beginPath();
+          c.rect(maskLayout.x, maskLayout.y, maskLayout.w, maskLayout.h);
+          c.clip();
+        }
+      }
+      // 用原始布局绘制图片（不变形）
+      drawImageWithEffects(state.images[i], origLayout.x, origLayout.y, origLayout.w, origLayout.h);
+      c.restore();
     } else {
-      const c = getCtx();
       c.fillStyle = '#e5e7eb';
-      if (state.imageRadius > 0) { roundRect(c, layout.x, layout.y, layout.w, layout.h, state.imageRadius * 2); } else { c.fillRect(layout.x, layout.y, layout.w, layout.h); }
+      if (state.imageRadius > 0) { roundRect(c, maskLayout.x, maskLayout.y, maskLayout.w, maskLayout.h, state.imageRadius * 2); } else { c.fillRect(maskLayout.x, maskLayout.y, maskLayout.w, maskLayout.h); }
       c.fillStyle = '#9ca3af';
       c.font = 'bold 32px sans-serif';
       c.textAlign = 'center';
       c.textBaseline = 'middle';
-      c.fillText(`${i + 1}`, layout.x + layout.w / 2, layout.y + layout.h / 2);
+      c.fillText(`${i + 1}`, maskLayout.x + maskLayout.w / 2, maskLayout.y + maskLayout.h / 2);
     }
   });
 }
@@ -970,22 +1171,29 @@ function renderCircleStyle() {
   const margin = 50;
   const borderWidth = state.circleBorderWidth;
   
-  let cx, cy;
+  let origCx, origCy;
   if (state.circlePosition === 'right') {
-    cx = 1024 - margin - size / 2;
-    cy = 1024 - margin - size / 2;
+    origCx = 1024 - margin - size / 2;
+    origCy = 1024 - margin - size / 2;
   } else {
-    cx = margin + size / 2;
-    cy = 1024 - margin - size / 2;
+    origCx = margin + size / 2;
+    origCy = 1024 - margin - size / 2;
   }
+  
+  // 应用布局偏移/缩放到圆形位置
+  const tp = transformPoint(origCx, origCy);
+  const ts = transformSize(size, size);
+  const cx = tp.x;
+  const cy = tp.y;
+  const newSize = ts.w; // 缩放后的圆形尺寸
   
   c.save();
   c.beginPath();
-  c.arc(cx, cy, size / 2, 0, Math.PI * 2);
+  c.arc(cx, cy, newSize / 2, 0, Math.PI * 2);
   c.clip();
   
   if (state.images[1]) {
-    drawImageCoverInCircle(state.images[1], cx - size / 2, cy - size / 2, size, size);
+    drawImageCoverInCircle(state.images[1], cx - newSize / 2, cy - newSize / 2, newSize, newSize);
   } else {
     c.fillStyle = '#d1d5db';
     c.fill();
@@ -999,7 +1207,7 @@ function renderCircleStyle() {
   c.restore();
   
   c.beginPath();
-  c.arc(cx, cy, size / 2, 0, Math.PI * 2);
+  c.arc(cx, cy, newSize / 2, 0, Math.PI * 2);
   c.strokeStyle = state.circleBorderColor;
   c.lineWidth = borderWidth;
   c.stroke();
@@ -1026,26 +1234,31 @@ function renderDetailMask2Style() {
   const offsetX = (1024 - svgW * scale) / 2;
   const offsetY = 0;
   
+  // 原始坐标（用于图片绘制）
   function tx(x) { return x * scale + offsetX; }
   function ty(y) { return y * scale + offsetY; }
+  // 变换后坐标（用于遮罩/边框）- 使用 transformPoint 包含所有变换
+  function mx(x) { return transformPoint(tx(x), ty(x)).x; }
+  function my(y) { return transformPoint(tx(y), ty(y)).y; }
   
   c.font = 'bold 100px sans-serif';
   c.fillStyle = titleColor;
   c.textAlign = 'left';
   c.textBaseline = 'top';
-  c.fillText(title, tx(38.999), ty(99.373));
+  c.fillText(title, mx(38.999), my(99.373));
   
+  // 左侧遮罩（图2）
   c.save();
   c.beginPath();
-  c.moveTo(tx(522.55), ty(406.17));
-  c.lineTo(tx(522.55), ty(194.14));
-  c.lineTo(tx(190.39), ty(194.14));
-  c.bezierCurveTo(tx(105.69), ty(194.14), tx(37.03), ty(262.8), tx(37.03), ty(347.5));
-  c.lineTo(tx(37.03), ty(817.76));
-  c.lineTo(tx(369.19), ty(817.76));
-  c.bezierCurveTo(tx(410.01), ty(817.76), tx(447.1), ty(801.81), tx(474.58), ty(775.8));
-  c.lineTo(tx(474.58), ty(517.58));
-  c.bezierCurveTo(tx(474.58), ty(473.7), tx(493.01), ty(434.13), tx(522.55), ty(406.17));
+  c.moveTo(mx(522.55), my(406.17));
+  c.lineTo(mx(522.55), my(194.14));
+  c.lineTo(mx(190.39), my(194.14));
+  c.bezierCurveTo(mx(105.69), my(194.14), mx(37.03), my(262.8), mx(37.03), my(347.5));
+  c.lineTo(mx(37.03), my(817.76));
+  c.lineTo(mx(369.19), my(817.76));
+  c.bezierCurveTo(mx(410.01), my(817.76), mx(447.1), my(801.81), mx(474.58), my(775.8));
+  c.lineTo(mx(474.58), my(517.58));
+  c.bezierCurveTo(mx(474.58), my(473.7), mx(493.01), my(434.13), mx(522.55), my(406.17));
   c.closePath();
   c.clip();
   
@@ -1059,31 +1272,32 @@ function renderDetailMask2Style() {
   c.restore();
   
   c.beginPath();
-  c.moveTo(tx(522.55), ty(406.17));
-  c.lineTo(tx(522.55), ty(194.14));
-  c.lineTo(tx(190.39), ty(194.14));
-  c.bezierCurveTo(tx(105.69), ty(194.14), tx(37.03), ty(262.8), tx(37.03), ty(347.5));
-  c.lineTo(tx(37.03), ty(817.76));
-  c.lineTo(tx(369.19), ty(817.76));
-  c.bezierCurveTo(tx(410.01), ty(817.76), tx(447.1), ty(801.81), tx(474.58), ty(775.8));
-  c.lineTo(tx(474.58), ty(517.58));
-  c.bezierCurveTo(tx(474.58), ty(473.7), tx(493.01), ty(434.13), tx(522.55), ty(406.17));
+  c.moveTo(mx(522.55), my(406.17));
+  c.lineTo(mx(522.55), my(194.14));
+  c.lineTo(mx(190.39), my(194.14));
+  c.bezierCurveTo(mx(105.69), my(194.14), mx(37.03), my(262.8), mx(37.03), my(347.5));
+  c.lineTo(mx(37.03), my(817.76));
+  c.lineTo(mx(369.19), my(817.76));
+  c.bezierCurveTo(mx(410.01), my(817.76), mx(447.1), my(801.81), mx(474.58), my(775.8));
+  c.lineTo(mx(474.58), my(517.58));
+  c.bezierCurveTo(mx(474.58), my(473.7), mx(493.01), my(434.13), mx(522.55), my(406.17));
   c.closePath();
   c.strokeStyle = bg;
   c.lineWidth = 5 * scale;
   c.stroke();
   
+  // 右侧遮罩（图1）
   c.save();
   c.beginPath();
-  c.moveTo(tx(627.94), ty(364.22));
-  c.bezierCurveTo(tx(587.12), ty(364.22), tx(550.03), ty(380.17), tx(522.55), ty(406.17));
-  c.bezierCurveTo(tx(493.01), ty(434.13), tx(474.58), ty(473.7), tx(474.58), ty(517.58));
-  c.lineTo(tx(474.58), ty(775.8));
-  c.lineTo(tx(474.58), ty(966.03));
-  c.lineTo(tx(806.74), ty(966.03));
-  c.bezierCurveTo(tx(891.44), ty(966.03), tx(960.1), ty(897.37), tx(960.1), ty(812.67));
-  c.lineTo(tx(960.1), ty(364.22));
-  c.lineTo(tx(627.94), ty(364.22));
+  c.moveTo(mx(627.94), my(364.22));
+  c.bezierCurveTo(mx(587.12), my(364.22), mx(550.03), my(380.17), mx(522.55), my(406.17));
+  c.bezierCurveTo(mx(493.01), my(434.13), mx(474.58), my(473.7), mx(474.58), my(517.58));
+  c.lineTo(mx(474.58), my(775.8));
+  c.lineTo(mx(474.58), my(966.03));
+  c.lineTo(mx(806.74), my(966.03));
+  c.bezierCurveTo(mx(891.44), my(966.03), mx(960.1), my(897.37), mx(960.1), my(812.67));
+  c.lineTo(mx(960.1), my(364.22));
+  c.lineTo(mx(627.94), my(364.22));
   c.closePath();
   c.clip();
   
@@ -1097,15 +1311,15 @@ function renderDetailMask2Style() {
   c.restore();
   
   c.beginPath();
-  c.moveTo(tx(627.94), ty(364.22));
-  c.bezierCurveTo(tx(587.12), ty(364.22), tx(550.03), ty(380.17), tx(522.55), ty(406.17));
-  c.bezierCurveTo(tx(493.01), ty(434.13), tx(474.58), ty(473.7), tx(474.58), ty(517.58));
-  c.lineTo(tx(474.58), ty(775.8));
-  c.lineTo(tx(474.58), ty(966.03));
-  c.lineTo(tx(806.74), ty(966.03));
-  c.bezierCurveTo(tx(891.44), ty(966.03), tx(960.1), ty(897.37), tx(960.1), ty(812.67));
-  c.lineTo(tx(960.1), ty(364.22));
-  c.lineTo(tx(627.94), ty(364.22));
+  c.moveTo(mx(627.94), my(364.22));
+  c.bezierCurveTo(mx(587.12), my(364.22), mx(550.03), my(380.17), mx(522.55), my(406.17));
+  c.bezierCurveTo(mx(493.01), my(434.13), mx(474.58), my(473.7), mx(474.58), my(517.58));
+  c.lineTo(mx(474.58), my(775.8));
+  c.lineTo(mx(474.58), my(966.03));
+  c.lineTo(mx(806.74), my(966.03));
+  c.bezierCurveTo(mx(891.44), my(966.03), mx(960.1), my(897.37), mx(960.1), my(812.67));
+  c.lineTo(mx(960.1), my(364.22));
+  c.lineTo(mx(627.94), my(364.22));
   c.closePath();
   c.strokeStyle = bg;
   c.lineWidth = 5 * scale;
@@ -1115,26 +1329,26 @@ function renderDetailMask2Style() {
   c.fillStyle = textColor;
   c.textAlign = 'left';
   c.textBaseline = 'top';
-  c.fillText(text1Title, tx(600.330), ty(216.122));
+  c.fillText(text1Title, mx(600.330), my(216.122));
   
   c.font = '20px sans-serif';
   c.fillStyle = textColor;
   const lines1 = wrapTextByWords(c, text1Desc, 300);
   lines1.forEach((line, i) => {
-    c.fillText(line, tx(602.085), ty(289.437) + i * 24);
+    c.fillText(line, mx(602.085), my(289.437) + i * 24);
   });
   
   c.font = 'bold 42px sans-serif';
   c.fillStyle = textColor;
   c.textAlign = 'left';
   c.textBaseline = 'top';
-  c.fillText(text2Title, tx(82.110), ty(838.106));
+  c.fillText(text2Title, mx(82.110), my(838.106));
   
   c.font = '20px sans-serif';
   c.fillStyle = textColor;
   const lines2 = wrapTextByWords(c, text2Desc, 320);
   lines2.forEach((line, i) => {
-    c.fillText(line, tx(82.301), ty(911.430) + i * 24);
+    c.fillText(line, mx(82.301), my(911.430) + i * 24);
   });
 }
 
@@ -1150,18 +1364,24 @@ function renderCardMask2Style() {
   c.fillStyle = bg;
   c.fillRect(0, 0, 1024, 1024);
   
+  // 使用 transformPoint/transformSize 包含所有变换
+  function mx(x) { return transformPoint(x, 0).x; }
+  function my(y) { return transformPoint(0, y).y; }
+  function mw(w) { return transformSize(w, 0).w; }
+  function mh(h) { return transformSize(0, h).h; }
+  
   c.font = 'bold 36px sans-serif';
   c.fillStyle = titleColor;
   c.textAlign = 'center';
   c.textBaseline = 'middle';
-  c.fillText(title, 512, 55);
+  c.fillText(title, mx(512), my(55));
   
   if (subtitle) {
     c.font = '18px sans-serif';
     c.fillStyle = subtitleColor;
     const subLines = wrapTextByWords(c, subtitle, 700);
     subLines.forEach((line, i) => {
-      c.fillText(line, 512, 90 + i * 24);
+      c.fillText(line, mx(512), my(90) + i * 24);
     });
   }
   
@@ -1172,23 +1392,28 @@ function renderCardMask2Style() {
   const startY = 150;
   
   for (let i = 0; i < 2; i++) {
-    const cx = startX + i * (cardW + gap);
+    const origCx = startX + i * (cardW + gap);
+    const maskCx = mx(origCx);
+    const maskCy = my(startY);
+    const maskW = mw(cardW);
+    const maskH = mh(cardH);
     
     c.save();
-    roundRect(c, cx, startY, cardW, cardH, radius);
+    roundRect(c, maskCx, maskCy, maskW, maskH, radius);
     c.clip();
     
     c.fillStyle = '#d4d4d4';
-    c.fillRect(cx, startY, cardW, cardH);
+    c.fillRect(maskCx, maskCy, maskW, maskH);
     
     if (state.images[i]) {
-      drawImageCover(state.images[i], cx, startY, cardW, cardH);
+      // 用原始坐标绘制图片（不变形）
+      drawImageCover(state.images[i], origCx, startY, cardW, cardH);
     }
     
     c.restore();
     
     c.beginPath();
-    roundRect(c, cx, startY, cardW, cardH, radius);
+    roundRect(c, maskCx, maskCy, maskW, maskH, radius);
     c.strokeStyle = '#ffffff';
     c.lineWidth = 3;
     c.stroke();
@@ -1207,11 +1432,17 @@ function renderIrregularMask4Style() {
   c.fillStyle = bg;
   c.fillRect(0, 0, 1024, 1024);
   
+  // 使用 transformPoint/transformSize 包含所有变换
+  function mx(x) { return transformPoint(x, 0).x; }
+  function my(y) { return transformPoint(0, y).y; }
+  function mw(w) { return transformSize(w, 0).w; }
+  function mh(h) { return transformSize(0, h).h; }
+  
   c.font = 'bold 56px sans-serif';
   c.fillStyle = textColor;
   c.textAlign = 'center';
   c.textBaseline = 'middle';
-  c.fillText(title, 512, 55);
+  c.fillText(title, mx(512), my(55));
   
   const cardW = 480;
   const cardH = 400;
@@ -1227,25 +1458,31 @@ function renderIrregularMask4Style() {
   ];
   
   positions.forEach((pos, i) => {
+    const maskX = mx(pos.x);
+    const maskY = my(pos.y);
+    const maskW = mw(cardW);
+    const maskH = mh(cardH);
+    
     c.save();
     
     c.beginPath();
     if (i === 0) {
-      drawIrregularPathTL(c, pos.x, pos.y, cardW, cardH);
+      drawIrregularPathTL(c, maskX, maskY, maskW, maskH);
     } else if (i === 1) {
-      drawIrregularPathTR(c, pos.x, pos.y, cardW, cardH);
+      drawIrregularPathTR(c, maskX, maskY, maskW, maskH);
     } else if (i === 2) {
-      drawIrregularPathBL(c, pos.x, pos.y, cardW, cardH);
+      drawIrregularPathBL(c, maskX, maskY, maskW, maskH);
     } else {
-      drawIrregularPathBR(c, pos.x, pos.y, cardW, cardH);
+      drawIrregularPathBR(c, maskX, maskY, maskW, maskH);
     }
     c.closePath();
     c.clip();
     
     c.fillStyle = cardColor;
-    c.fillRect(pos.x, pos.y, cardW, cardH);
+    c.fillRect(maskX, maskY, maskW, maskH);
     
     if (state.images[i]) {
+      // 用原始坐标绘制图片（不变形）
       drawImageCover(state.images[i], pos.x, pos.y, cardW, cardH);
     }
     
@@ -1253,13 +1490,13 @@ function renderIrregularMask4Style() {
     
     c.beginPath();
     if (i === 0) {
-      drawIrregularPathTL(c, pos.x, pos.y, cardW, cardH);
+      drawIrregularPathTL(c, maskX, maskY, maskW, maskH);
     } else if (i === 1) {
-      drawIrregularPathTR(c, pos.x, pos.y, cardW, cardH);
+      drawIrregularPathTR(c, maskX, maskY, maskW, maskH);
     } else if (i === 2) {
-      drawIrregularPathBL(c, pos.x, pos.y, cardW, cardH);
+      drawIrregularPathBL(c, maskX, maskY, maskW, maskH);
     } else {
-      drawIrregularPathBR(c, pos.x, pos.y, cardW, cardH);
+      drawIrregularPathBR(c, maskX, maskY, maskW, maskH);
     }
     c.closePath();
     c.strokeStyle = bg;
@@ -1267,10 +1504,10 @@ function renderIrregularMask4Style() {
     c.stroke();
     
     const numPos = [
-      { x: pos.x + 40, y: pos.y + 40 },
-      { x: pos.x + cardW - 40, y: pos.y + 40 },
-      { x: pos.x + 40, y: pos.y + cardH - 40 },
-      { x: pos.x + cardW - 40, y: pos.y + cardH - 40 }
+      { x: maskX + mw(40), y: maskY + mh(40) },
+      { x: maskX + maskW - mw(40), y: maskY + mh(40) },
+      { x: maskX + mw(40), y: maskY + maskH - mh(40) },
+      { x: maskX + maskW - mw(40), y: maskY + maskH - mh(40) }
     ];
     
     c.beginPath();
@@ -1289,10 +1526,10 @@ function renderIrregularMask4Style() {
     
     c.font = 'bold 18px sans-serif';
     c.fillStyle = textColor;
-    c.textAlign = i < 2 ? 'left' : 'left';
+    c.textAlign = 'left';
     c.textBaseline = 'bottom';
-    const textX = i % 2 === 0 ? pos.x + 20 : pos.x + 20;
-    const textY = pos.y + cardH - 15;
+    const textX = maskX + mw(20);
+    const textY = maskY + maskH - mh(15);
     c.fillText(texts[i] || '', textX, textY);
   });
 }
@@ -1374,11 +1611,15 @@ function renderUseDisplayStyle() {
   
   const layouts = template.layoutsUseDisplay;
   const gap = state.imageGap * 2;
-  const adjustedLayouts = adjustLayoutsWithGap(layouts, gap);
+  const originalLayouts = adjustLayoutsWithGap(layouts, gap);
+  const avoidedLayouts = adjustLayoutsAvoidText(originalLayouts);
+  const hasAvoid = originalLayouts !== avoidedLayouts;
   
-  adjustedLayouts.forEach((layout, i) => {
+  originalLayouts.forEach((origLayout, i) => {
+    const maskLayout = hasAvoid ? avoidedLayouts[i] : origLayout;
     c.save();
-    roundRect(c, layout.x, layout.y, layout.w, layout.h, 12);
+    // 用避让后的布局做遮罩
+    roundRect(c, maskLayout.x, maskLayout.y, maskLayout.w, maskLayout.h, 12);
     c.fillStyle = cardBgColor;
     c.fill();
     c.strokeStyle = borderColor;
@@ -1387,20 +1628,21 @@ function renderUseDisplayStyle() {
     c.clip();
     
     if (state.images[i]) {
-      drawImageCover(state.images[i], layout.x, layout.y, layout.w, layout.h);
+      // 用原始布局绘制图片（不变形）
+      drawImageCover(state.images[i], origLayout.x, origLayout.y, origLayout.w, origLayout.h);
     } else {
       c.fillStyle = '#d4cfc0';
-      c.fillRect(layout.x, layout.y, layout.w, layout.h);
+      c.fillRect(maskLayout.x, maskLayout.y, maskLayout.w, maskLayout.h);
       c.fillStyle = '#a09a88';
       c.font = '24px sans-serif';
       c.textAlign = 'center';
       c.textBaseline = 'middle';
-      c.fillText('📷', layout.x + layout.w / 2, layout.y + layout.h / 2);
+      c.fillText('📷', maskLayout.x + maskLayout.w / 2, maskLayout.y + maskLayout.h / 2);
     }
     
     c.restore();
     
-    roundRect(c, layout.x, layout.y, layout.w, layout.h, 12);
+    roundRect(c, maskLayout.x, maskLayout.y, maskLayout.w, maskLayout.h, 12);
     c.strokeStyle = borderColor;
     c.lineWidth = 2;
     c.stroke();
@@ -1424,20 +1666,23 @@ function renderMainDetail4Style() {
   
   const layouts = template.layoutsMainDetail;
   const gap = state.imageGap * 2;
-  const adjustedLayouts = adjustLayoutsWithGap(layouts, gap);
+  const originalLayouts = adjustLayoutsWithGap(layouts, gap);
+  const avoidedLayouts = adjustLayoutsAvoidText(originalLayouts);
+  const hasAvoid = originalLayouts !== avoidedLayouts;
   
-  adjustedLayouts.forEach((layout, i) => {
+  originalLayouts.forEach((origLayout, i) => {
+    const maskLayout = hasAvoid ? avoidedLayouts[i] : origLayout;
     c.save();
     
     if (i === 0) {
-      roundRect(c, layout.x, layout.y, layout.w, layout.h, mainRadius);
+      roundRect(c, maskLayout.x, maskLayout.y, maskLayout.w, maskLayout.h, mainRadius);
       c.fillStyle = '#ffffff';
       c.fill();
       c.strokeStyle = mainBorderColor;
       c.lineWidth = 2;
       c.stroke();
     } else {
-      roundRect(c, layout.x, layout.y, layout.w, layout.h, detailRadius);
+      roundRect(c, maskLayout.x, maskLayout.y, maskLayout.w, maskLayout.h, detailRadius);
       c.fillStyle = '#ffffff';
       c.fill();
       c.strokeStyle = detailBorderColor;
@@ -1448,26 +1693,27 @@ function renderMainDetail4Style() {
     c.clip();
     
     if (state.images[i]) {
-      drawImageCover(state.images[i], layout.x, layout.y, layout.w, layout.h);
+      // 用原始布局绘制图片（不变形）
+      drawImageCover(state.images[i], origLayout.x, origLayout.y, origLayout.w, origLayout.h);
     } else {
       c.fillStyle = '#eeeeee';
-      c.fillRect(layout.x, layout.y, layout.w, layout.h);
+      c.fillRect(maskLayout.x, maskLayout.y, maskLayout.w, maskLayout.h);
       c.fillStyle = '#bbbbbb';
       c.font = i === 0 ? 'bold 28px sans-serif' : '20px sans-serif';
       c.textAlign = 'center';
       c.textBaseline = 'middle';
-      c.fillText('📷', layout.x + layout.w / 2, layout.y + layout.h / 2);
+      c.fillText('📷', maskLayout.x + maskLayout.w / 2, maskLayout.y + maskLayout.h / 2);
     }
     
     c.restore();
     
     if (i === 0) {
-      roundRect(c, layout.x, layout.y, layout.w, layout.h, mainRadius);
+      roundRect(c, maskLayout.x, maskLayout.y, maskLayout.w, maskLayout.h, mainRadius);
       c.strokeStyle = mainBorderColor;
       c.lineWidth = 2;
       c.stroke();
     } else {
-      roundRect(c, layout.x, layout.y, layout.w, layout.h, detailRadius);
+      roundRect(c, maskLayout.x, maskLayout.y, maskLayout.w, maskLayout.h, detailRadius);
       c.strokeStyle = detailBorderColor;
       c.lineWidth = 1.5;
       c.stroke();
@@ -1504,7 +1750,7 @@ function exportImage(format = 'png', quality = 0.95) {
   
   const origDisplayScale = displayScale;
   const origDimensions = state.dimensions;
-  renderCtx = tempCtx;
+  window._renderCtx = tempCtx;
   
   tempCtx.save();
   tempCtx.scale(SCALE, SCALE);
@@ -1525,14 +1771,14 @@ function exportImage(format = 'png', quality = 0.95) {
   } catch (e) {
     console.error('Export error:', e);
     showToast('导出失败: ' + e.message, true);
-    renderCtx = null;
+    window._renderCtx = null;
     state.dimensions = origDimensions;
     displayScale = origDisplayScale;
     return;
   }
   
   tempCtx.restore();
-  renderCtx = null;
+  window._renderCtx = null;
   state.dimensions = origDimensions;
   displayScale = origDisplayScale;
   

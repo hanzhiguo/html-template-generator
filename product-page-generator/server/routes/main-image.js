@@ -552,4 +552,154 @@ function extractCopyFromDoc(productData, language) {
   return { copyList: copyList.slice(0, 6), copyListEn: copyListEn.slice(0, 6), source };
 }
 
+// 字体扫描 API - 扫描 fonts 目录返回可用字体列表
+router.get('/fonts', async (req, res) => {
+  try {
+    const fontsDir = path.join(__dirname, '..', '..', 'fonts');
+    const fonts = [];
+
+    // 格式优先级：woff2 > woff > ttf > otf
+    const formatPriority = { '.woff2': 0, '.woff': 1, '.ttf': 2, '.otf': 3 };
+    const fontExtensions = Object.keys(formatPriority);
+
+    // 常见权重映射
+    const weightMap = {
+      'Thin': 100, 'Hairline': 100,
+      'ExtraLight': 200, 'UltraLight': 200, 'ExtLt': 200,
+      'Light': 300, 'Lt': 300,
+      'Regular': 400, 'Normal': 400, 'Book': 400, 'Roman': 400,
+      'Medium': 500, 'Med': 500,
+      'SemiBold': 600, 'DemiBold': 600, 'SemiBd': 600, 'Dem': 600,
+      'Bold': 700, 'Bd': 700,
+      'ExtraBold': 800, 'UltraBold': 800, 'ExtBd': 800,
+      'Black': 900, 'Heavy': 900, 'Blk': 900
+    };
+
+    const weightLabels = {
+      100: 'Thin 100', 200: 'ExtraLight 200', 300: 'Light 300',
+      400: 'Regular 400', 500: 'Medium 500', 600: 'SemiBold 600',
+      700: 'Bold 700', 800: 'ExtraBold 800', 900: 'Black 900'
+    };
+
+    // 解析字体文件名
+    function parseFontFileName(filename) {
+      let name = path.basename(filename, path.extname(filename));
+      const isItalic = /italic|oblique/i.test(name);
+      let family = name;
+      let weight = 400;
+
+      // 按权重名长度降序匹配，避免 ExtraLight 被 Light 先匹配
+      const sortedWeights = Object.entries(weightMap).sort((a, b) => b[0].length - a[0].length);
+      for (const [key, value] of sortedWeights) {
+        const regex = new RegExp(`[-_]?${key}[-_]?`, 'i');
+        if (regex.test(family)) {
+          weight = value;
+          family = family.replace(regex, '');
+          break;
+        }
+      }
+
+      family = family.replace(/[-_]?(Italic|Oblique)[-_]?/gi, '');
+      family = family.replace(/[-_]+/g, ' ').trim();
+
+      return { name, family, weight, style: isItalic ? 'italic' : 'normal' };
+    }
+
+    // 递归扫描目录
+    function scanFonts(dir, baseDir = dir) {
+      if (!fs.existsSync(dir)) return;
+      const items = fs.readdirSync(dir, { withFileTypes: true });
+
+      for (const item of items) {
+        const fullPath = path.join(dir, item.name);
+        if (item.isDirectory()) {
+          scanFonts(fullPath, baseDir);
+        } else if (item.isFile()) {
+          const ext = path.extname(item.name).toLowerCase();
+          if (fontExtensions.includes(ext)) {
+            // 跳过 Variable 字体和 Display 变体
+            const baseName = path.basename(item.name, ext);
+            if (/Variable/i.test(baseName)) continue;
+            if (/Display/i.test(baseName)) continue;
+
+            const fontInfo = parseFontFileName(item.name);
+            const relativePath = path.relative(baseDir, fullPath).replace(/\\/g, '/');
+            fonts.push({
+              family: fontInfo.family,
+              weight: fontInfo.weight,
+              style: fontInfo.style,
+              file: relativePath,
+              ext: ext
+            });
+          }
+        }
+      }
+    }
+
+    scanFonts(fontsDir);
+
+    // 按字体家族分组，同名文件优先保留 woff2
+    const fontFamilies = {};
+    for (const font of fonts) {
+      const family = font.family;
+      if (!fontFamilies[family]) {
+        fontFamilies[family] = {
+          name: family,
+          weights: [],
+          styles: [],
+          files: []
+        };
+      }
+
+      const ff = fontFamilies[family];
+
+      // 添加权重（去重）
+      if (!ff.weights.includes(font.weight)) {
+        ff.weights.push(font.weight);
+      }
+
+      // 添加样式（去重）
+      if (!ff.styles.includes(font.style)) {
+        ff.styles.push(font.style);
+      }
+
+      // 添加文件：同 weight+style 优先保留 woff2
+      const existing = ff.files.find(f => f.weight === font.weight && f.style === font.style);
+      if (existing) {
+        if ((formatPriority[font.ext] || 99) < (formatPriority[existing.ext] || 99)) {
+          existing.file = font.file;
+          existing.ext = font.ext;
+        }
+      } else {
+        ff.files.push({
+          file: font.file,
+          weight: font.weight,
+          style: font.style,
+          ext: font.ext
+        });
+      }
+    }
+
+    // 排序权重，添加标签
+    for (const family of Object.keys(fontFamilies)) {
+      fontFamilies[family].weights.sort((a, b) => a - b);
+      fontFamilies[family].weightOptions = fontFamilies[family].weights.map(w => ({
+        value: String(w),
+        label: weightLabels[w] || `Weight ${w}`
+      }));
+    }
+
+    const result = Object.values(fontFamilies).sort((a, b) => a.name.localeCompare(b.name));
+
+    res.json({
+      success: true,
+      fonts: result,
+      total: result.length
+    });
+  } catch (err) {
+    console.error('扫描字体失败:', err);
+    res.status(500).json({ error: '扫描字体失败: ' + err.message });
+  }
+});
+
 module.exports = router;
