@@ -33,19 +33,28 @@
       content.classList.toggle('active', content.id === 'tab-' + tabName);
     });
     
+    // AI套图 Tab 切换：替换右侧面板
+    const mainNormal = document.getElementById('mainContentNormal');
+    const mainAIEdit = document.getElementById('mainContentAIEdit');
+    if (tabName === 'aiEdit') {
+      if (mainNormal) mainNormal.style.display = 'none';
+      if (mainAIEdit) mainAIEdit.style.display = 'flex';
+      if (typeof loadProductSpecs === 'function') loadProductSpecs();
+    } else {
+      if (mainNormal) mainNormal.style.display = 'flex';
+      if (mainAIEdit) mainAIEdit.style.display = 'none';
+    }
+    
     // 根据Tab调整交互层优先级
     const dragOverlay = document.getElementById('dragOverlay');
     const konvaOverlay = document.getElementById('konvaOverlay');
     
-    if (tabName === 'dim' && window.state && window.state.dimEnabled) {
-      // 标注Tab + 标注启用：Konva层优先
+    if (tabName === 'dim' && window.state && window.state.dimLayerVisible) {
       if (dragOverlay) dragOverlay.style.pointerEvents = 'none';
       if (konvaOverlay) konvaOverlay.style.pointerEvents = 'auto';
     } else {
-      // 其他Tab：dragOverlay优先（支持文字/图片交互）
       if (dragOverlay) dragOverlay.style.pointerEvents = 'auto';
-      if (konvaOverlay && window.state && window.state.dimEnabled) {
-        // 标注启用但不在标注Tab时，Konva层降低优先级但仍可见
+      if (konvaOverlay && window.state && window.state.dimLayerVisible) {
         konvaOverlay.style.pointerEvents = 'none';
       }
     }
@@ -82,8 +91,9 @@
     // 同步Tab眼睛按钮状态
     const eyeBtn = document.getElementById('tabEyeText');
     if (eyeBtn) {
-      if (visible) { eyeBtn.textContent = '👁'; eyeBtn.classList.remove('hidden-layer'); }
-      else { eyeBtn.textContent = '👁‍🗨️'; eyeBtn.classList.add('hidden-layer'); }
+      eyeBtn.innerHTML = visible ? '<i data-lucide="eye" class="icon-xs"></i>' : '<i data-lucide="eye-off" class="icon-xs"></i>';
+      eyeBtn.classList.toggle('hidden-layer', !visible);
+      if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [eyeBtn] });
     }
     window.render();
   }
@@ -93,16 +103,9 @@
    */
   function toggleDimLayer(visible) {
     window.state.dimLayerVisible = visible;
-    const status = document.getElementById('dimLayerStatus');
-    if (status) {
-      status.textContent = visible ? '可见' : '已隐藏';
-      status.className = 'toggle-status ' + (visible ? 'visible' : 'hidden');
-    }
-    // 标注Tab眼睛按钮现在控制dimEnabled，不在此同步
-    // 同步Konva覆盖层的可见性
     const konvaOverlay = document.getElementById('konvaOverlay');
     if (konvaOverlay) {
-      konvaOverlay.style.display = visible && document.getElementById('dimToggle')?.checked ? '' : 'none';
+      konvaOverlay.style.display = visible ? '' : 'none';
     }
   }
 
@@ -214,13 +217,6 @@
     }
     
     // 同步标注层可见性
-    const dimLayerVisibleEl = document.getElementById('dimLayerVisible');
-    const dimLayerStatusEl = document.getElementById('dimLayerStatus');
-    if (dimLayerVisibleEl) dimLayerVisibleEl.checked = state.dimLayerVisible;
-    if (dimLayerStatusEl) {
-      dimLayerStatusEl.textContent = state.dimLayerVisible ? '可见' : '已隐藏';
-      dimLayerStatusEl.className = 'toggle-status ' + (state.dimLayerVisible ? 'visible' : 'hidden');
-    }
     
     document.querySelectorAll('.template-item').forEach(item => {
       item.classList.toggle('active', parseInt(item.dataset.count) === state.templateCount);
@@ -256,6 +252,40 @@
     
     window.updateCircleOptions();
     
+    // 同步 detail 面板颜色输入
+    const detailColorIds = ['detailBgColor','detailCardColor','detailTitleColor','detailTextColor'];
+    detailColorIds.forEach(id => {
+      const el = document.getElementById(id);
+      const textEl = document.getElementById(id + 'Text');
+      const stateKey = id;
+      if (el && state[stateKey] !== undefined) el.value = state[stateKey];
+      if (textEl && state[stateKey] !== undefined) textEl.value = state[stateKey];
+    });
+    
+    // 同步 card 面板颜色输入
+    const cardColorIds = ['cardBgColor','cardTitleColor','cardSubtitleColor'];
+    cardColorIds.forEach(id => {
+      const el = document.getElementById(id);
+      const textEl = document.getElementById(id + 'Text');
+      if (el && state[id] !== undefined) el.value = state[id];
+      if (textEl && state[id] !== undefined) textEl.value = state[id];
+    });
+    
+    // 同步 mask 面板颜色输入
+    const maskColorIds = ['maskBgColor','maskCardColor','maskNumberBg','maskTextColor'];
+    maskColorIds.forEach(id => {
+      const el = document.getElementById(id);
+      const textEl = document.getElementById(id + 'Text');
+      if (el && state[id] !== undefined) el.value = state[id];
+      if (textEl && state[id] !== undefined) textEl.value = state[id];
+    });
+    
+    // 同步 circleBorderColor
+    const circleBorderColorEl = document.getElementById('circleBorderColor');
+    const circleBorderColorTextEl = document.getElementById('circleBorderColorText');
+    if (circleBorderColorEl) circleBorderColorEl.value = state.circleBorderColor;
+    if (circleBorderColorTextEl) circleBorderColorTextEl.value = state.circleBorderColor;
+    
     document.querySelectorAll('.style-btn[data-style="maskStyle"]').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.value === state.maskStyle);
     });
@@ -272,9 +302,17 @@
     const useDisplayBorderColorEl = document.getElementById('useDisplayBorderColor');
     if (useDisplayTitleInput) useDisplayTitleInput.value = state.useDisplayTitle;
     if (useDisplayBgColorEl) useDisplayBgColorEl.value = state.useDisplayBgColor;
+    const useDisplayBgColorTextEl = document.getElementById('useDisplayBgColorText');
+    if (useDisplayBgColorTextEl) useDisplayBgColorTextEl.value = state.useDisplayBgColor;
     if (useDisplayCardBgEl) useDisplayCardBgEl.value = state.useDisplayCardBg;
+    const useDisplayCardBgTextEl = document.getElementById('useDisplayCardBgText');
+    if (useDisplayCardBgTextEl) useDisplayCardBgTextEl.value = state.useDisplayCardBg;
     if (useDisplayTitleColorEl) useDisplayTitleColorEl.value = state.useDisplayTitleColor;
+    const useDisplayTitleColorTextEl = document.getElementById('useDisplayTitleColorText');
+    if (useDisplayTitleColorTextEl) useDisplayTitleColorTextEl.value = state.useDisplayTitleColor;
     if (useDisplayBorderColorEl) useDisplayBorderColorEl.value = state.useDisplayBorderColor;
+    const useDisplayBorderColorTextEl = document.getElementById('useDisplayBorderColorText');
+    if (useDisplayBorderColorTextEl) useDisplayBorderColorTextEl.value = state.useDisplayBorderColor;
     
     const mainDetailOptions = document.getElementById('mainDetailOptions');
     if (mainDetailOptions) mainDetailOptions.style.display = state.maskStyle === 'mainDetail' ? 'block' : 'none';
@@ -289,10 +327,16 @@
     const mainDetailMainBorderEl = document.getElementById('mainDetailMainBorder');
     const mainDetailDetailBorderEl = document.getElementById('mainDetailDetailBorder');
     if (mainDetailBgColorEl) mainDetailBgColorEl.value = state.mainDetailBgColor;
+    const mainDetailBgColorTextEl = document.getElementById('mainDetailBgColorText');
+    if (mainDetailBgColorTextEl) mainDetailBgColorTextEl.value = state.mainDetailBgColor;
     if (mainDetailMainRadiusEl) mainDetailMainRadiusEl.value = state.mainDetailMainRadius;
     if (mainDetailDetailRadiusEl) mainDetailDetailRadiusEl.value = state.mainDetailDetailRadius;
     if (mainDetailMainBorderEl) mainDetailMainBorderEl.value = state.mainDetailMainBorder;
+    const mainDetailMainBorderTextEl = document.getElementById('mainDetailMainBorderText');
+    if (mainDetailMainBorderTextEl) mainDetailMainBorderTextEl.value = state.mainDetailMainBorder;
     if (mainDetailDetailBorderEl) mainDetailDetailBorderEl.value = state.mainDetailDetailBorder;
+    const mainDetailDetailBorderTextEl = document.getElementById('mainDetailDetailBorderText');
+    if (mainDetailDetailBorderTextEl) mainDetailDetailBorderTextEl.value = state.mainDetailDetailBorder;
     
     const scenarioBgColorEl = document.getElementById('scenarioBgColor');
     const scenarioCardRadiusEl = document.getElementById('scenarioCardRadius');

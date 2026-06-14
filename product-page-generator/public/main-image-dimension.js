@@ -6,28 +6,62 @@
  * 依赖全局函数：render, showToast, formatDualUnitText
  */
 
-function bindDimEvents() {
-  const dt = document.getElementById('dimToggle');
-  if (!dt) return;
-  
-  dt.addEventListener('change', () => {
-    state.dimEnabled = dt.checked;
-    document.getElementById('dimPanel').style.display = state.dimEnabled ? 'block' : 'none';
-    const dragOverlay = document.getElementById('dragOverlay');
-    if (state.dimEnabled) {
+/**
+ * 初始化标注 Konva 覆盖层（始终可用，由可见性和编辑模式控制交互）
+ */
+function toggleDimEnabled(enabled) {
+  const dragOverlay = document.getElementById('dragOverlay');
+  const konvaOverlay = document.getElementById('konvaOverlay');
+
+  if (enabled) {
+    const activeTab = document.querySelector('.sidebar-tab.active');
+    const isDimTab = activeTab && activeTab.getAttribute('onclick').includes("'dim'");
+    if (isDimTab) {
       if (dragOverlay) dragOverlay.style.pointerEvents = 'none';
-      if (state.dimLayerVisible) {
-        initKonvaOverlay();
-      }
+      if (konvaOverlay) konvaOverlay.style.pointerEvents = 'auto';
     } else {
       if (dragOverlay) dragOverlay.style.pointerEvents = 'auto';
-      if (konvaStage) { konvaStage.destroy(); konvaStage = null; }
-      document.getElementById('konvaOverlay').style.display = 'none';
-      state.dimFirstPoint = null;
+      if (konvaOverlay) konvaOverlay.style.pointerEvents = 'none';
     }
-    render();
+    if (state.dimLayerVisible && konvaOverlay) {
+      initKonvaOverlay();
+    }
+  } else {
+    if (dragOverlay) dragOverlay.style.pointerEvents = 'auto';
+    if (konvaOverlay) konvaOverlay.style.pointerEvents = 'none';
+    if (konvaStage) { konvaStage.destroy(); konvaStage = null; }
+    if (konvaOverlay) konvaOverlay.style.display = 'none';
+    state.dimFirstPoint = null;
+  }
+
+  render();
+}
+
+window.toggleDimEnabled = toggleDimEnabled;
+
+/**
+ * 刷新标注锚点显示/隐藏（编辑模式下可拖拽，非编辑模式隐藏）
+ */
+function refreshDimAnchors() {
+  if (!konvaDimLayer) return;
+  const editing = state.dimEditing;
+  konvaDimLayer.find('.anchor').forEach(a => {
+    a.visible(editing);
+    a.draggable(editing);
   });
-  
+  konvaDimLayer.find('.anchor-hit').forEach(h => {
+    h.visible(editing);
+    h.draggable(editing);
+  });
+  konvaDimLayer.find('.moveHandle').forEach(m => {
+    m.draggable(editing);
+  });
+  konvaDimLayer.batchDraw();
+}
+
+window.refreshDimAnchors = refreshDimAnchors;
+
+function bindDimEvents() {
   document.getElementById('dimValue').addEventListener('input', (e) => {
     if (state.selectedDimId) {
       const d = state.dimensions.find(d => d.id === state.selectedDimId);
@@ -36,39 +70,56 @@ function bindDimEvents() {
   });
   document.getElementById('dimColor').addEventListener('input', (e) => {
     state.dimColor = e.target.value;
-    if (state.selectedDimId) {
-      const d = state.dimensions.find(d => d.id === state.selectedDimId);
-      if (d) { d.lineColor = e.target.value; updateKonvaDim(d); render(); }
-    }
+    // 应用到所有选中标注
+    state.selectedDimIds.forEach(id => {
+      const d = state.dimensions.find(d => d.id === id);
+      if (d) { d.lineColor = state.dimColor; updateKonvaDim(d); }
+    });
+    render();
   });
   document.getElementById('dimLineW').addEventListener('input', (e) => {
     state.dimLineW = parseInt(e.target.value);
     document.getElementById('dimLineWVal').textContent = e.target.value + 'px';
+    state.selectedDimIds.forEach(id => {
+      const d = state.dimensions.find(d => d.id === id);
+      if (d) { d.lineWidth = state.dimLineW; updateKonvaDim(d); render(); }
+    });
   });
   document.getElementById('dimFontS').addEventListener('input', (e) => {
     state.dimFontS = parseInt(e.target.value);
     document.getElementById('dimFontSVal').textContent = e.target.value + 'px';
+    state.selectedDimIds.forEach(id => {
+      const d = state.dimensions.find(d => d.id === id);
+      if (d) { d.fontSize = state.dimFontS; updateKonvaDim(d); render(); }
+    });
   });
   document.getElementById('dimTextColor').addEventListener('input', (e) => {
     state.dimTextColor = e.target.value;
+    state.selectedDimIds.forEach(id => {
+      const d = state.dimensions.find(d => d.id === id);
+      if (d) { d.textColor = state.dimTextColor; updateKonvaDim(d); render(); }
+    });
   });
   document.getElementById('dimEndStyle').addEventListener('change', (e) => {
     state.dimEndStyle = e.target.value;
-    if (state.selectedDimId) {
-      const d = state.dimensions.find(d => d.id === state.selectedDimId);
+    state.selectedDimIds.forEach(id => {
+      const d = state.dimensions.find(d => d.id === id);
       if (d) { d.endStyle = e.target.value; updateKonvaDim(d); render(); }
-    }
+    });
   });
   document.getElementById('dimTextBg').addEventListener('change', (e) => {
     state.dimTextBg = e.target.value;
-    if (state.selectedDimId) {
-      const d = state.dimensions.find(d => d.id === state.selectedDimId);
+    state.selectedDimIds.forEach(id => {
+      const d = state.dimensions.find(d => d.id === id);
       if (d) { d.textBg = e.target.value; updateKonvaDim(d); render(); }
-    }
+    });
   });
 }
 
 function initKonvaOverlay() {
+  // 如果涂抹模式激活，不初始化标注覆盖层
+  if (typeof state !== 'undefined' && state.brushMaskEnabled && brushKonvaStage) return;
+  
   if (konvaStage) konvaStage.destroy();
   const wrapper = document.querySelector('.canvas-wrapper');
   if (!wrapper) return;
@@ -110,20 +161,44 @@ function initKonvaOverlay() {
       const dx = Math.abs(x2 - x1), dy = Math.abs(y2 - y1);
       const isHoriz = dx > dy;
       
+      // 转换为 1024 画布坐标系存储
+      const s = displayScale || 1;
       let finalX1, finalY1, finalX2, finalY2;
       if (isHoriz) {
-        finalX1 = x1; finalY1 = y1;
-        finalX2 = x2; finalY2 = y1;
+        finalX1 = x1 / s; finalY1 = y1 / s;
+        finalX2 = x2 / s; finalY2 = y1 / s;
       } else {
-        finalX1 = x1; finalY1 = y1;
-        finalX2 = x1; finalY2 = y2;
+        finalX1 = x1 / s; finalY1 = y1 / s;
+        finalX2 = x1 / s; finalY2 = y2 / s;
       }
       
       const id = 'dim' + Date.now();
+      // 优先使用文档尺寸数据，根据标注跨度智能分配大小边数值
+      let dimDefault = document.getElementById('dimValue').value || '45';
+      if (typeof _docDimData !== 'undefined' && _docDimData && (_docDimData.length || _docDimData.width || _docDimData.height || _docDimData.diameter)) {
+        // 用标注跨度来判断是长边还是短边
+        const spanH = Math.abs(finalX2 - finalX1);
+        const spanV = Math.abs(finalY2 - finalY1);
+        // 水平标注：spanH 是实际跨度，垂直标注：spanV 是实际跨度
+        // 用标注方向的实际跨度与另一个方向的参考跨度比较
+        const layouts = typeof getCurrentLayouts === 'function' ? getCurrentLayouts() : null;
+        const layout = layouts?.[state.activeImageIndex || 0];
+        const lw = layout ? layout.w : 1024;
+        const lh = layout ? layout.h : 1024;
+        // 将标注跨度映射为等效的遮罩宽高
+        const effectiveW = isHoriz ? spanH : (spanV > 0 ? lw * spanV / lh : 0);
+        const effectiveH = isHoriz ? (spanH > 0 ? lh * spanH / lw : 0) : spanV;
+        if (typeof getSmartDimValues === 'function') {
+          const smart = getSmartDimValues(effectiveW || lw, effectiveH || lh);
+          if (smart) {
+            dimDefault = String(isHoriz ? smart.horizVal : smart.vertVal);
+          }
+        }
+      }
       const dim = {
         id, type: isHoriz ? 'horizontal' : 'vertical',
         x1: finalX1, y1: finalY1, x2: finalX2, y2: finalY2,
-        value: document.getElementById('dimValue').value || '45',
+        value: dimDefault,
         unit: 'cm',
         lineColor: state.dimColor, lineWidth: state.dimLineW,
         textColor: state.dimTextColor, fontSize: state.dimFontS,
@@ -153,6 +228,7 @@ function initKonvaOverlay() {
   });
   
   state.dimensions.forEach(d => buildKonvaDim(d));
+  refreshDimAnchors();
 }
 
 window.initKonvaOverlay = initKonvaOverlay;
@@ -177,9 +253,11 @@ function updateKonvaDim(dim) {
 function updateKonvaGroup(group, dim) {
   group.destroyChildren();
   
-  const x1 = dim.x1, y1 = dim.y1, x2 = dim.x2, y2 = dim.y2;
-  const lw = dim.lineWidth || 2;
-  const fs = dim.fontSize || 16;
+  // 坐标在 1024 画布空间存储，转换为 Konva stage 坐标
+  const s = displayScale || 1;
+  const x1 = dim.x1 * s, y1 = dim.y1 * s, x2 = dim.x2 * s, y2 = dim.y2 * s;
+  const lw = (dim.lineWidth || 2);
+  const fs = (dim.fontSize || 16) * s; // 缩放字体以匹配显示比例
   const endStyle = dim.endStyle || 'arrow';
   
   const line = new Konva.Line({
@@ -259,24 +337,35 @@ function updateKonvaGroup(group, dim) {
   
   let bgW, bgH;
   
-  if (endStyle === 'line' && cmVal !== null) {
-    // 横线样式：双色文字，分两行显示
-    const cmStr = cmVal % 1 === 0 ? cmVal.toString() : cmVal.toFixed(1);
-    const inchStr = inchVal % 1 === 0 ? inchVal.toString() : inchVal.toFixed(2);
+  if (cmVal !== null) {
+    // 双行显示：一行厘米，一行英寸，单位首字母对齐
+    const cmStr = cmVal.toFixed(1);
+    const inchStr = inchVal.toFixed(1);
     
-    // 第一行标签（数值红色+单位黑色）
-    const label1 = new Konva.Text({
-      text: `${cmStr}cm`,
-      fontSize: fs, fontFamily: 'sans-serif', fontStyle: 'bold', name: 'label-line1'
+    // 数值标签（红色）
+    const num1 = new Konva.Text({
+      text: cmStr, fontSize: fs, fontFamily: 'sans-serif', fontStyle: 'bold',
+      fill: '#e53935', name: 'num-line1'
     });
-    // 第二行标签（换算值红色+单位黑色）
-    const label2 = new Konva.Text({
-      text: `${inchStr}inch`,
-      fontSize: fs, fontFamily: 'sans-serif', fontStyle: 'bold', name: 'label-line2'
+    const num2 = new Konva.Text({
+      text: inchStr, fontSize: fs, fontFamily: 'sans-serif', fontStyle: 'bold',
+      fill: '#e53935', name: 'num-line2'
+    });
+    // 单位标签（深灰色）
+    const unit1 = new Konva.Text({
+      text: 'cm', fontSize: fs, fontFamily: 'sans-serif', fontStyle: 'bold',
+      fill: '#333333', name: 'unit-line1'
+    });
+    const unit2 = new Konva.Text({
+      text: 'inch', fontSize: fs, fontFamily: 'sans-serif', fontStyle: 'bold',
+      fill: '#333333', name: 'unit-line2'
     });
     
-    const maxW = Math.max(label1.width(), label2.width());
-    bgW = maxW + 10; bgH = fs * 2 + 6 + 4;
+    // 数值右对齐，单位左对齐（单位首字母对齐）
+    const maxNumW = Math.max(num1.width(), num2.width());
+    const unitGap = fs * 0.2; // 数值和单位之间的间距
+    const totalW = maxNumW + unitGap + Math.max(unit1.width(), unit2.width());
+    bgW = totalW + 10; bgH = fs * 2 + 10;
     
     // 背景
     if (textBg === 'white') {
@@ -287,20 +376,23 @@ function updateKonvaGroup(group, dim) {
       group.add(bg);
     }
     
-    // 第一行文字位置
-    label1.position({ x: midX, y: midY + offsetY - fs/2 - 2 });
-    label1.offsetX(label1.width()/2);
-    label1.offsetY(label1.height()/2);
-    group.add(label1);
+    const leftEdge = midX - totalW/2;
+    const unitStartX = leftEdge + maxNumW + unitGap;
     
-    // 第二行文字位置
-    label2.position({ x: midX, y: midY + offsetY + fs/2 + 2 });
-    label2.offsetX(label2.width()/2);
-    label2.offsetY(label2.height()/2);
-    group.add(label2);
+    // 第一行：数值右对齐 + 单位左对齐
+    num1.position({ x: leftEdge + maxNumW - num1.width(), y: midY + offsetY - fs/2 - 2 });
+    group.add(num1);
+    unit1.position({ x: unitStartX, y: midY + offsetY - fs/2 - 2 });
+    group.add(unit1);
+    
+    // 第二行
+    num2.position({ x: leftEdge + maxNumW - num2.width(), y: midY + offsetY + fs/2 + 2 });
+    group.add(num2);
+    unit2.position({ x: unitStartX, y: midY + offsetY + fs/2 + 2 });
+    group.add(unit2);
     
   } else {
-    // 其他样式：原有单行文字
+    // 无单位换算：原有单行文字
     const label = new Konva.Text({
       text: formatDualUnitText(dim.value, dim.unit),
       fontSize: fs, fontFamily: 'sans-serif', fontStyle: 'bold', fill: dim.textColor, name: 'label'
@@ -322,40 +414,86 @@ function updateKonvaGroup(group, dim) {
     group.add(label);
   }
   
-  const anchorSz = 10;
+  const anchorSz = 16;
+  const editing = state.dimEditing;
   const a1 = new Konva.Rect({
     x: x1 - anchorSz/2, y: y1 - anchorSz/2, width: anchorSz, height: anchorSz,
     fill: '#fff', stroke: dim.lineColor, strokeWidth: 2, cornerRadius: 2,
-    draggable: true, name: 'anchor'
+    draggable: editing, name: 'anchor',
+    visible: editing
   });
   a1.on('dragmove', () => {
-    dim.x1 = a1.x() + anchorSz/2; dim.y1 = a1.y() + anchorSz/2;
-    updatePositionsOnly(group, dim);
+    const s = displayScale || 1;
+    dim.x1 = (a1.x() + anchorSz/2) / s; dim.y1 = (a1.y() + anchorSz/2) / s;
+    updatePositionsOnly(group, dim, true);
     render();
   });
+  a1.on('mouseenter', () => { a1.fill('#3b82f6'); a1.stroke('#3b82f6'); a1.strokeWidth(3); konvaDimLayer.batchDraw(); });
+  a1.on('mouseleave', () => { a1.fill('#fff'); a1.stroke(dim.lineColor); a1.strokeWidth(state.selectedDimIds.includes(dim.id) ? 3 : 2); konvaDimLayer.batchDraw(); });
   group.add(a1);
-  
+  // 隐式热区（可拖拽，与锚点同步）
+  const hitSz = 24;
+  const a1hit = new Konva.Rect({
+    x: x1 - hitSz/2, y: y1 - hitSz/2, width: hitSz, height: hitSz,
+    fill: 'transparent', name: 'anchor-hit',
+    visible: editing,
+    draggable: editing
+  });
+  a1hit.on('dragmove', () => {
+    const s = displayScale || 1;
+    dim.x1 = (a1hit.x() + hitSz/2) / s; dim.y1 = (a1hit.y() + hitSz/2) / s;
+    // 同步锚点位置
+    a1.position({ x: a1hit.x() + (hitSz - anchorSz) / 2, y: a1hit.y() + (hitSz - anchorSz) / 2 });
+    updatePositionsOnly(group, dim, true);
+    render();
+  });
+  a1hit.on('mouseenter', () => { a1.fill('#3b82f6'); a1.stroke('#3b82f6'); a1.strokeWidth(3); konvaDimLayer.batchDraw(); });
+  a1hit.on('mouseleave', () => { a1.fill('#fff'); a1.stroke(dim.lineColor); a1.strokeWidth(state.selectedDimIds.includes(dim.id) ? 3 : 2); konvaDimLayer.batchDraw(); });
+  group.add(a1hit);
+
   const a2 = new Konva.Rect({
     x: x2 - anchorSz/2, y: y2 - anchorSz/2, width: anchorSz, height: anchorSz,
     fill: '#fff', stroke: dim.lineColor, strokeWidth: 2, cornerRadius: 2,
-    draggable: true, name: 'anchor'
+    draggable: editing, name: 'anchor',
+    visible: editing
   });
   a2.on('dragmove', () => {
-    dim.x2 = a2.x() + anchorSz/2; dim.y2 = a2.y() + anchorSz/2;
-    updatePositionsOnly(group, dim);
+    const s = displayScale || 1;
+    dim.x2 = (a2.x() + anchorSz/2) / s; dim.y2 = (a2.y() + anchorSz/2) / s;
+    updatePositionsOnly(group, dim, true);
     render();
   });
+  a2.on('mouseenter', () => { a2.fill('#3b82f6'); a2.stroke('#3b82f6'); a2.strokeWidth(3); konvaDimLayer.batchDraw(); });
+  a2.on('mouseleave', () => { a2.fill('#fff'); a2.stroke(dim.lineColor); a2.strokeWidth(state.selectedDimIds.includes(dim.id) ? 3 : 2); konvaDimLayer.batchDraw(); });
   group.add(a2);
-  
+  const a2hit = new Konva.Rect({
+    x: x2 - hitSz/2, y: y2 - hitSz/2, width: hitSz, height: hitSz,
+    fill: 'transparent', name: 'anchor-hit',
+    visible: editing,
+    draggable: editing
+  });
+  a2hit.on('dragmove', () => {
+    const s = displayScale || 1;
+    dim.x2 = (a2hit.x() + hitSz/2) / s; dim.y2 = (a2hit.y() + hitSz/2) / s;
+    // 同步锚点位置
+    a2.position({ x: a2hit.x() + (hitSz - anchorSz) / 2, y: a2hit.y() + (hitSz - anchorSz) / 2 });
+    updatePositionsOnly(group, dim, true);
+    render();
+  });
+  a2hit.on('mouseenter', () => { a2.fill('#3b82f6'); a2.stroke('#3b82f6'); a2.strokeWidth(3); konvaDimLayer.batchDraw(); });
+  a2hit.on('mouseleave', () => { a2.fill('#fff'); a2.stroke(dim.lineColor); a2.strokeWidth(state.selectedDimIds.includes(dim.id) ? 3 : 2); konvaDimLayer.batchDraw(); });
+  group.add(a2hit);
+
   const moveHandle = new Konva.Rect({
     x: midX - bgW/2, y: midY + offsetY - bgH/2,
     width: bgW, height: bgH,
     fill: 'transparent',
-    draggable: true, name: 'moveHandle'
+    draggable: editing, name: 'moveHandle'
   });
   moveHandle.on('dragmove', () => {
-    const newMidX = moveHandle.x() + bgW/2;
-    const newMidY = moveHandle.y() + bgH/2 - offsetY;
+    const s = displayScale || 1;
+    const newMidX = (moveHandle.x() + bgW/2) / s;
+    const newMidY = (moveHandle.y() + bgH/2 - offsetY) / s;
     const halfDx = (dim.x2 - dim.x1) / 2;
     const halfDy = (dim.y2 - dim.y1) / 2;
     dim.x1 = newMidX - halfDx;
@@ -367,18 +505,23 @@ function updateKonvaGroup(group, dim) {
   });
   group.add(moveHandle);
   
-  group.on('click tap', () => selectDim(dim.id));
-  
-  if (dim.id === state.selectedDimId) {
+  group.on('click tap', (e) => {
+    const isMulti = e.evt && (e.evt.ctrlKey || e.evt.metaKey);
+    selectDim(dim.id, isMulti);
+  });
+
+  if (state.selectedDimIds.includes(dim.id)) {
     const bg = group.findOne('.bg');
-    if (bg) { bg.stroke('#3b82f6'); bg.strokeWidth(2); }
+    if (bg) { bg.stroke('#3b82f6'); bg.strokeWidth(3); }
   }
 }
 
 function updatePositionsOnly(group, dim, updateAnchors = false) {
-  const x1 = dim.x1, y1 = dim.y1, x2 = dim.x2, y2 = dim.y2;
+  // 坐标在 1024 画布空间存储，转换为 Konva stage 坐标
+  const s = displayScale || 1;
+  const x1 = dim.x1 * s, y1 = dim.y1 * s, x2 = dim.x2 * s, y2 = dim.y2 * s;
   const lw = dim.lineWidth || 2;
-  const fs = dim.fontSize || 16;
+  const fs = (dim.fontSize || 16) * s; // 缩放字体以匹配显示比例
   const endStyle = dim.endStyle || 'arrow';
   
   const line = group.findOne('.line');
@@ -434,14 +577,16 @@ function updatePositionsOnly(group, dim, updateAnchors = false) {
   const midX = (x1 + x2) / 2, midY = (y1 + y2) / 2;
   const offsetY = -(fs + 12);
   
+  const num1 = group.findOne('.num-line1');
+  const num2 = group.findOne('.num-line2');
+  const unit1 = group.findOne('.unit-line1');
+  const unit2 = group.findOne('.unit-line2');
   const label = group.findOne('.label');
-  const label1 = group.findOne('.label-line1');
-  const label2 = group.findOne('.label-line2');
   const bg = group.findOne('.bg');
   const textBg = dim.textBg || 'white';
   
-  if (endStyle === 'line' && label1 && label2) {
-    // 横线样式的双行标签更新
+  if (num1 && num2 && unit1 && unit2) {
+    // 双行标签更新：数值+单位分离，单位首字母对齐
     const numVal = parseFloat(dim.value);
     let cmVal = null, inchVal = null;
     
@@ -454,22 +599,26 @@ function updatePositionsOnly(group, dim, updateAnchors = false) {
     }
     
     if (cmVal !== null) {
-      const cmStr = cmVal % 1 === 0 ? cmVal.toString() : cmVal.toFixed(1);
-      const inchStr = inchVal % 1 === 0 ? inchVal.toString() : inchVal.toFixed(2);
+      const cmStr = cmVal.toFixed(1);
+      const inchStr = inchVal.toFixed(1);
       
-      label1.text(`${cmStr}cm`);
-      label2.text(`${inchStr}inch`);
+      num1.text(cmStr); num1.fontSize(fs);
+      num2.text(inchStr); num2.fontSize(fs);
+      unit1.fontSize(fs);
+      unit2.fontSize(fs);
       
-      const maxW = Math.max(label1.width(), label2.width());
-      const bgW = maxW + 10, bgH = fs * 2 + 6 + 4;
+      const maxNumW = Math.max(num1.width(), num2.width());
+      const unitGap = fs * 0.2;
+      const totalW = maxNumW + unitGap + Math.max(unit1.width(), unit2.width());
+      const bgW = totalW + 10, bgH = fs * 2 + 10;
       
-      label1.offsetX(label1.width()/2);
-      label1.offsetY(label1.height()/2);
-      label1.position({ x: midX, y: midY + offsetY - fs/2 - 2 });
+      const leftEdge = midX - totalW/2;
+      const unitStartX = leftEdge + maxNumW + unitGap;
       
-      label2.offsetX(label2.width()/2);
-      label2.offsetY(label2.height()/2);
-      label2.position({ x: midX, y: midY + offsetY + fs/2 + 2 });
+      num1.position({ x: leftEdge + maxNumW - num1.width(), y: midY + offsetY - fs/2 - 2 });
+      unit1.position({ x: unitStartX, y: midY + offsetY - fs/2 - 2 });
+      num2.position({ x: leftEdge + maxNumW - num2.width(), y: midY + offsetY + fs/2 + 2 });
+      unit2.position({ x: unitStartX, y: midY + offsetY + fs/2 + 2 });
       
       if (textBg === 'white') {
         if (bg) {
@@ -479,9 +628,16 @@ function updatePositionsOnly(group, dim, updateAnchors = false) {
       } else {
         if (bg) bg.destroy();
       }
+      
+      const mh = group.findOne('.moveHandle');
+      if (mh) {
+        mh.position({ x: midX - bgW/2, y: midY + offsetY - bgH/2 });
+        mh.size({ width: bgW, height: bgH });
+      }
     }
   } else if (label) {
     label.text(formatDualUnitText(dim.value, dim.unit));
+    label.fontSize(fs);
     label.offsetX(label.width()/2);
     label.offsetY(label.height()/2);
     label.position({ x: midX, y: midY + offsetY });
@@ -496,16 +652,36 @@ function updatePositionsOnly(group, dim, updateAnchors = false) {
     } else {
       if (bg) bg.destroy();
     }
+    
+    // 同步更新moveHandle的位置和大小
+    const mh = group.findOne('.moveHandle');
+    if (mh) {
+      mh.position({ x: midX - bgW/2, y: midY + offsetY - bgH/2 });
+      mh.size({ width: bgW, height: bgH });
+    }
   }
   
   if (updateAnchors) {
-    const anchorSz = 10;
+    const anchorSz = 16;
     const anchors = group.find('.anchor');
     if (anchors.length >= 2) {
       anchors[0].position({ x: x1 - anchorSz/2, y: y1 - anchorSz/2 });
       anchors[1].position({ x: x2 - anchorSz/2, y: y2 - anchorSz/2 });
     }
+    // 同步更新隐式热区位置
+    const hitSz = 24;
+    const hits = group.find('.anchor-hit');
+    if (hits.length >= 2) {
+      hits[0].position({ x: x1 - hitSz/2, y: y1 - hitSz/2 });
+      hits[1].position({ x: x2 - hitSz/2, y: y2 - hitSz/2 });
+    }
   }
+  
+  // 关键修复：将anchors和moveHandle移到最顶层，避免被重建的.end元素遮挡
+  group.find('.anchor-hit').forEach(a => a.moveToTop());
+  group.find('.anchor').forEach(a => a.moveToTop());
+  const mh = group.findOne('.moveHandle');
+  if (mh) mh.moveToTop();
   
   if (konvaDimLayer) konvaDimLayer.batchDraw();
 }
@@ -516,8 +692,22 @@ function removeKonvaDim(id) {
   if (g) g.destroy();
 }
 
-function selectDim(id) {
-  state.selectedDimId = id;
+function selectDim(id, multi = false) {
+  if (multi && id) {
+    // 多选模式：切换选中状态
+    const idx = state.selectedDimIds.indexOf(id);
+    if (idx >= 0) {
+      state.selectedDimIds.splice(idx, 1);
+    } else {
+      state.selectedDimIds.push(id);
+    }
+    state.selectedDimId = id; // 最后点击的作为"主选"
+  } else {
+    // 单选模式
+    state.selectedDimIds = id ? [id] : [];
+    state.selectedDimId = id;
+  }
+
   if (id) {
     const d = state.dimensions.find(d => d.id === id);
     if (d) {
@@ -530,8 +720,30 @@ function selectDim(id) {
   }
   if (konvaDimLayer) {
     konvaDimLayer.find('.dim').forEach(g => {
+      const isSelected = state.selectedDimIds.includes(g.id());
       const bg = g.findOne('.bg');
-      if (bg) { bg.stroke(g.id() === id ? '#3b82f6' : null); bg.strokeWidth(2); }
+      if (bg) { bg.stroke(isSelected ? '#3b82f6' : null); bg.strokeWidth(isSelected ? 3 : 2); }
+    });
+    konvaDimLayer.draw();
+  }
+  refreshDimList();
+}
+
+function selectAllDims() {
+  if (state.selectedDimIds.length === state.dimensions.length) {
+    // 全部取消
+    state.selectedDimIds = [];
+    state.selectedDimId = null;
+  } else {
+    state.selectedDimIds = state.dimensions.map(d => d.id);
+    state.selectedDimId = state.selectedDimIds[0] || null;
+  }
+  // 直接更新 UI，不走 selectDim 避免重置
+  if (konvaDimLayer) {
+    konvaDimLayer.find('.dim').forEach(g => {
+      const isSelected = state.selectedDimIds.includes(g.id());
+      const bg = g.findOne('.bg');
+      if (bg) { bg.stroke(isSelected ? '#3b82f6' : null); bg.strokeWidth(isSelected ? 3 : 2); }
     });
     konvaDimLayer.draw();
   }
@@ -543,19 +755,39 @@ function refreshDimList() {
   const countEl = document.getElementById('dimCount');
   if (!el) return;
   if (countEl) countEl.textContent = state.dimensions.length;
-  el.innerHTML = state.dimensions.map(d => `
-    <div class="dim-list-item ${d.id === state.selectedDimId ? 'sel' : ''}" onclick="selectDim('${d.id}')">
+  const selSet = new Set(state.selectedDimIds);
+  el.innerHTML = state.dimensions.map(d => {
+    const isSel = selSet.has(d.id);
+    return `
+    <div class="dim-list-item ${isSel ? 'sel' : ''}" data-dim-id="${d.id}" style="cursor:pointer;">
       <span class="color-dot" style="background:${d.lineColor || '#ff6b6b'}"></span>
       <span class="dim-name">${d.type === 'horizontal' ? '↔' : '↕'} ${formatDualUnitText(d.value, d.unit)}</span>
-      <span class="dim-del" onclick="event.stopPropagation();deleteDim('${d.id}')">×</span>
+      <span class="dim-del" data-del-id="${d.id}">×</span>
     </div>
-  `).join('');
+  `;
+  }).join('');
+
+  // 绑定事件（避免 inline onclick 获取不到 event 的问题）
+  el.querySelectorAll('.dim-list-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      if (e.target.classList.contains('dim-del')) return;
+      const id = item.dataset.dimId;
+      selectDim(id, e.ctrlKey || e.metaKey);
+    });
+  });
+  el.querySelectorAll('.dim-del').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteDim(btn.dataset.delId);
+    });
+  });
 }
 
 function deleteDim(id) {
   removeKonvaDim(id);
   state.dimensions = state.dimensions.filter(d => d.id !== id);
-  if (state.selectedDimId === id) state.selectedDimId = null;
+  state.selectedDimIds = state.selectedDimIds.filter(sid => sid !== id);
+  if (state.selectedDimId === id) state.selectedDimId = state.selectedDimIds[0] || null;
   refreshDimList();
   if (konvaDimLayer) konvaDimLayer.draw();
   render();
@@ -565,25 +797,14 @@ function deleteAllDims() {
   state.dimensions.forEach(d => removeKonvaDim(d.id));
   state.dimensions = [];
   state.selectedDimId = null;
+  state.selectedDimIds = [];
   refreshDimList();
   if (konvaDimLayer) konvaDimLayer.draw();
   render();
 }
 
-function autoDetectProduct() {
-  const targetIdx = parseInt(document.getElementById('dimTargetImg').value) || 0;
-  if (!state.images[targetIdx]) { 
-    showToast(targetIdx === 0 ? '请先上传主图' : '请先上传副图', true); 
-    return; 
-  }
-  
-  if (!state.dimEnabled) {
-    document.getElementById('dimToggle').checked = true;
-    state.dimEnabled = true;
-    document.getElementById('dimPanel').style.display = 'block';
-    initKonvaOverlay();
-  }
-  
+// 像素差异法自动识别（SAM2 的降级方案）
+function autoDetectPixelDiff(targetIdx) {
   const img = state.images[targetIdx].img;
   const tmpCanvas = document.createElement('canvas');
   const tmpCtx = tmpCanvas.getContext('2d');
@@ -649,64 +870,131 @@ function autoDetectProduct() {
     showToast('未检测到明显主体，使用默认区域');
   }
   
-  const pad = Math.min(w, h) * 0.03;
-  minX = Math.max(0, minX - pad);
-  minY = Math.max(0, minY - pad);
-  maxX = Math.min(w, maxX + pad);
-  maxY = Math.min(h, maxY + pad);
+  return { minX, minY, maxX, maxY };
+}
+
+async function autoDetectProduct() {
+  const targetIdx = parseInt(document.getElementById('dimTargetImg').value) || 0;
+  if (!state.images[targetIdx]) { 
+    showToast(targetIdx === 0 ? '请先上传主图' : '请先上传副图', true); 
+    return; 
+  }
   
+  if (!state.dimLayerVisible) {
+    state.dimLayerVisible = true;
+    initKonvaOverlay();
+  }
+  
+  // 获取当前 layout 区域（1024坐标系）
   const template = templates[state.templateCount];
-  const layout = template?.layouts[targetIdx];
+  const layouts = getCurrentLayouts();
+  const gap = state.imageGap * 2;
+  const adjustedLayouts = typeof adjustLayoutsWithGap === 'function'
+    ? adjustLayoutsWithGap(layouts, gap) : layouts;
+  const finalLayouts = typeof adjustLayoutsAvoidText === 'function'
+    ? adjustLayoutsAvoidText(adjustedLayouts) : adjustedLayouts;
+  const layout = finalLayouts?.[targetIdx];
   if (!layout) { showToast('无法获取图片布局', true); return; }
   
-  const scaleX = layout.w / w;
-  const scaleY = layout.h / h;
-  const offsetX = layout.x;
-  const offsetY = layout.y;
+  // 收集所有边界区域
+  let allBounds = [];
   
+  try {
+    // 优先使用 ComfyUI 分割
+    if (typeof comfyAutoDetect === 'function') {
+      showToast('正在通过 ComfyUI 识别...', false);
+      const bounds = await comfyAutoDetect(targetIdx);
+      console.log('[autoDetectProduct] comfyAutoDetect 返回:', JSON.stringify(bounds));
+      if (bounds) {
+        // 支持单个边界对象或边界数组
+        allBounds = Array.isArray(bounds) ? bounds : [bounds];
+        showToast('ComfyUI 识别完成，检测到 ' + allBounds.length + ' 个区域');
+      } else {
+        throw new Error('ComfyUI 未检测到物体');
+      }
+    } else {
+      throw new Error('ComfyUI 模块未加载');
+    }
+  } catch (e) {
+    // ComfyUI 失败，回退到像素差异法
+    console.warn('[AutoDetect] ComfyUI 分割失败，回退像素差异法:', e.message);
+    const fallback = autoDetectPixelDiff(targetIdx);
+    const img = state.images[targetIdx].img;
+    const scaleX = layout.w / img.width;
+    const scaleY = layout.h / img.height;
+    allBounds = [{
+      minX: layout.x + fallback.minX * scaleX,
+      minY: layout.y + fallback.minY * scaleY,
+      maxX: layout.x + fallback.maxX * scaleX,
+      maxY: layout.y + fallback.maxY * scaleY
+    }];
+  }
+  
+  // 为每个区域生成一对标注
   const color = state.dimColor;
   const lw = state.dimLineW;
   const endStyle = document.getElementById('dimEndStyle').value || 'arrow';
   const textBg = document.getElementById('dimTextBg').value || 'white';
   
-  const dimW = Math.round((maxX - minX) * 100 / w);
-  const dimH = Math.round((maxY - minY) * 100 / h);
-  
-  const hDim = {
-    id: 'dim_auto_h_' + Date.now(),
-    type: 'horizontal',
-    x1: (offsetX + minX * scaleX) * displayScale,
-    y1: (offsetY + maxY * scaleY + 20) * displayScale,
-    x2: (offsetX + maxX * scaleX) * displayScale,
-    y2: (offsetY + maxY * scaleY + 20) * displayScale,
-    value: dimW.toString(),
-    unit: 'cm', lineColor: color, lineWidth: lw,
-    textColor: state.dimTextColor, fontSize: state.dimFontS,
-    endStyle: endStyle, textBg: textBg
-  };
-  const vDim = {
-    id: 'dim_auto_v_' + Date.now(),
-    type: 'vertical',
-    x1: (offsetX + maxX * scaleX + 20) * displayScale,
-    y1: (offsetY + minY * scaleY) * displayScale,
-    x2: (offsetX + maxX * scaleX + 20) * displayScale,
-    y2: (offsetY + maxY * scaleY) * displayScale,
-    value: dimH.toString(),
-    unit: 'cm', lineColor: color, lineWidth: lw,
-    textColor: state.dimTextColor, fontSize: state.dimFontS,
-    endStyle: endStyle, textBg: textBg
-  };
-  
-  state.dimensions.push(hDim, vDim);
-  if (konvaStage) {
-    buildKonvaDim(hDim);
-    buildKonvaDim(vDim);
-    konvaDimLayer.draw();
+  let firstDimId = null;
+  for (let i = 0; i < allBounds.length; i++) {
+    const { minX, minY, maxX, maxY } = allBounds[i];
+    // 优先使用文档尺寸数据，根据遮罩宽高智能分配大小边数值
+    let dimW, dimH;
+    const maskW = maxX - minX;
+    const maskH = maxY - minY;
+    if (typeof getSmartDimValues === 'function') {
+      const smart = getSmartDimValues(maskW, maskH);
+      if (smart) {
+        dimW = smart.horizVal;
+        dimH = smart.vertVal;
+      }
+    }
+    if (dimW == null || dimH == null) {
+      dimW = Math.round((maxX - minX) / layout.w * 100);
+      dimH = Math.round((maxY - minY) / layout.h * 100);
+    }
+    
+    const hDim = {
+      id: 'dim_auto_h_' + Date.now() + '_' + i,
+      type: 'horizontal',
+      x1: minX,
+      y1: maxY + 20,
+      x2: maxX,
+      y2: maxY + 20,
+      value: dimW.toString(),
+      unit: 'cm', lineColor: color, lineWidth: lw,
+      textColor: state.dimTextColor, fontSize: state.dimFontS,
+      endStyle: endStyle, textBg: textBg
+    };
+    const vDim = {
+      id: 'dim_auto_v_' + Date.now() + '_' + i,
+      type: 'vertical',
+      x1: maxX + 20,
+      y1: minY,
+      x2: maxX + 20,
+      y2: maxY,
+      value: dimH.toString(),
+      unit: 'cm', lineColor: color, lineWidth: lw,
+      textColor: state.dimTextColor, fontSize: state.dimFontS,
+      endStyle: endStyle, textBg: textBg
+    };
+    
+    state.dimensions.push(hDim, vDim);
+    if (i === 0) firstDimId = hDim.id;
+    if (konvaStage) {
+      buildKonvaDim(hDim);
+      buildKonvaDim(vDim);
+    }
   }
-  selectDim(hDim.id);
+  
+  if (konvaStage) konvaDimLayer.draw();
+  if (firstDimId) selectDim(firstDimId);
   refreshDimList();
   render();
-  showToast(`识别完成: ${dimW}cm × ${dimH}cm`);
+  
+  const total = allBounds.length;
+  showToast(`识别完成: ${total} 个区域，${total * 2} 个标注`);
 }
 
 function getPixel(pixels, width, x, y) {

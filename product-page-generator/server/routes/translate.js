@@ -150,3 +150,34 @@ async function translateWithOpenAI(apiKey, model, prompt) {
 }
 
 module.exports = router;
+
+// 简单中译英接口（无需认证）
+router.post('/zh2en', async (req, res) => {
+    const { text } = req.body;
+    if (!text) return res.status(400).json({ error: '缺少文本' });
+
+    try {
+        const ollamaConfig = agentConfig.providers.ollama;
+        const model = ollamaConfig.model || 'gemma3:4b';
+        const baseUrl = ollamaConfig.baseUrl.replace('/v1', '') || 'http://localhost:11434';
+
+        const response = await fetch(`${baseUrl}/api/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model,
+                prompt: `Translate the following Chinese text to one English word (noun). Only return the English word, nothing else:\n${text}`,
+                stream: false,
+                options: { temperature: 0.1 }
+            })
+        });
+
+        if (!response.ok) throw new Error(`Ollama错误: ${response.status}`);
+        const data = await response.json();
+        const word = (data.response || '').trim().split(/[\s,，]+/)[0].toLowerCase();
+        res.json({ translated: word });
+    } catch (err) {
+        console.error('中译英失败:', err);
+        res.status(500).json({ error: err.message });
+    }
+});

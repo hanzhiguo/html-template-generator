@@ -32,6 +32,7 @@ const mainImageRoutes = require('./routes/main-image');
 const logosRoutes = require('./routes/logos');
 const imageClassifyRoutes = require('./routes/image-classify');
 const jimengRoutes = require('./routes/jimeng');
+const comfyuiRoutes = require('./routes/comfyui');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productsRoutes);
@@ -52,9 +53,13 @@ app.use('/api/main-image', mainImageRoutes);
 app.use('/api/logos', logosRoutes);
 app.use('/api/image-classify', imageClassifyRoutes);
 app.use('/api/jimeng', jimengRoutes);
+app.use('/api/comfyui', comfyuiRoutes);
 
 // 静态文件
 app.use(express.static(path.join(__dirname, '..', 'public')));
+// 提供 node_modules 中的 sam-web 和 onnxruntime-web
+app.use('/npm/sam-web', express.static(path.join(__dirname, '..', 'node_modules', 'sam-web', 'dist')));
+app.use('/npm/onnxruntime-web', express.static(path.join(__dirname, '..', 'node_modules', 'onnxruntime-web', 'dist')));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

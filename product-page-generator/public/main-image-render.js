@@ -681,12 +681,12 @@ function getNumberTextBBox() {
 function drawDimensionsOnCanvas() {
   const c = getCtx();
   state.dimensions.forEach(d => {
-    const x1 = d.x1 / displayScale;
-    const y1 = d.y1 / displayScale;
-    const x2 = d.x2 / displayScale;
-    const y2 = d.y2 / displayScale;
-    const lw = (d.lineWidth || 2) / displayScale;
-    const fs = (d.fontSize || 16) / displayScale;
+    const x1 = d.x1;
+    const y1 = d.y1;
+    const x2 = d.x2;
+    const y2 = d.y2;
+    const lw = (d.lineWidth || 2);
+    const fs = (d.fontSize || 16);
     const endStyle = d.endStyle || 'arrow';
     
     c.strokeStyle = d.lineColor;
@@ -755,10 +755,10 @@ function drawDimensionsOnCanvas() {
     
     // 文字绘制
     const textBg = d.textBg || 'white';
-    const pad12 = 12 / displayScale;
-    const pad10 = 10 / displayScale;
-    const pad6 = 6 / displayScale;
-    const pad3 = 3 / displayScale;
+    const pad12 = 12;
+    const pad10 = 10;
+    const pad6 = 6;
+    const pad3 = 3;
     const offsetY = -(fs + pad12);
     
     // 格式化双单位文本
@@ -783,25 +783,25 @@ function drawDimensionsOnCanvas() {
       }
     }
     
-    if (endStyle === 'line' && cmVal !== null) {
-      // 横线样式：双色文字，分两行显示
-      const cmStr = cmVal % 1 === 0 ? cmVal.toString() : cmVal.toFixed(1);
-      const inchStr = inchVal % 1 === 0 ? inchVal.toString() : inchVal.toFixed(2);
+    if (cmVal !== null) {
+      // 双行显示：数值+单位分离，单位首字母对齐，保留1位小数
+      const cmStr = cmVal.toFixed(1);
+      const inchStr = inchVal.toFixed(1);
       
       c.font = `bold ${fs}px sans-serif`;
-      c.textAlign = 'center';
+      c.textAlign = 'left';
       c.textBaseline = 'middle';
       
-      // 第一行：数值(红) + 单位(黑)
-      const line1Text = `${cmStr}cm`;
-      const tw1 = c.measureText(line1Text).width;
-      // 第二行：换算值(红) + 单位(黑)
-      const line2Text = `${inchStr}inch`;
-      const tw2 = c.measureText(line2Text).width;
+      const numW1 = c.measureText(cmStr).width;
+      const numW2 = c.measureText(inchStr).width;
+      const unitW1 = c.measureText('cm').width;
+      const unitW2 = c.measureText('inch').width;
       
-      const maxW = Math.max(tw1, tw2);
-      const bW = maxW + pad10;
-      const bH = fs * 2 + pad6 + 4 / displayScale; // 两行文字高度
+      const maxNumW = Math.max(numW1, numW2);
+      const unitGap = fs * 0.2;
+      const totalW = maxNumW + unitGap + Math.max(unitW1, unitW2);
+      const bW = totalW + pad10;
+      const bH = fs * 2 + pad6 + 4;
       
       // 绘制背景
       if (textBg === 'white') {
@@ -821,23 +821,22 @@ function drawDimensionsOnCanvas() {
         c.fill();
       }
       
-      // 绘制第一行文字（数值红色，单位黑色）
-      const line1Y = midY + offsetY - fs/2 - 2/displayScale;
-      let xOff = midX - tw1/2;
-      c.fillStyle = '#e53935'; // 红色数值
-      c.fillText(cmStr, xOff, line1Y);
-      xOff += c.measureText(cmStr).width;
-      c.fillStyle = '#333333'; // 黑色单位
-      c.fillText('cm', xOff, line1Y);
+      const leftEdge = midX - totalW/2;
+      const unitStartX = leftEdge + maxNumW + unitGap;
       
-      // 绘制第二行文字（换算值红色，单位黑色）
-      const line2Y = midY + offsetY + fs/2 + 2/displayScale;
-      xOff = midX - tw2/2;
-      c.fillStyle = '#e53935'; // 红色换算值
-      c.fillText(inchStr, xOff, line2Y);
-      xOff += c.measureText(inchStr).width;
-      c.fillStyle = '#333333'; // 黑色单位
-      c.fillText('inch', xOff, line2Y);
+      // 第一行：厘米
+      const line1Y = midY + offsetY - fs/2 - 2;
+      c.fillStyle = '#e53935';
+      c.fillText(cmStr, leftEdge + maxNumW - numW1, line1Y);
+      c.fillStyle = '#333333';
+      c.fillText('cm', unitStartX, line1Y);
+      
+      // 第二行：英寸
+      const line2Y = midY + offsetY + fs/2 + 2;
+      c.fillStyle = '#e53935';
+      c.fillText(inchStr, leftEdge + maxNumW - numW2, line2Y);
+      c.fillStyle = '#333333';
+      c.fillText('inch', unitStartX, line2Y);
       
     } else {
       // 其他样式：原有单行文字
@@ -1079,7 +1078,7 @@ function render() {
   
   if (state.logoLayerVisible && state.logo) { drawLogo(); }
   
-  if (state.dimEnabled && state.dimensions.length > 0) { drawDimensionsOnCanvas(); }
+  if (state.dimLayerVisible && state.dimensions.length > 0 && (!konvaStage || window._renderCtx)) { drawDimensionsOnCanvas(); }
   
   // 以下UI元素（拖拽指示器、slotType标签、选中框）已使用 adjustLayoutsTransform，自动跟随遮罩变换
   
@@ -1757,10 +1756,10 @@ function exportImage(format = 'png', quality = 0.95) {
   
   state.dimensions = origDimensions.map(d => ({
     ...d,
-    x1: d.x1 / origDisplayScale,
-    y1: d.y1 / origDisplayScale,
-    x2: d.x2 / origDisplayScale,
-    y2: d.y2 / origDisplayScale
+    x1: d.x1,
+    y1: d.y1,
+    x2: d.x2,
+    y2: d.y2
   }));
   displayScale = 1;
   
@@ -1802,7 +1801,10 @@ function updateExportSize() {
   
   // 更新导出按钮文本
   const exportBtn = document.getElementById('exportBtn');
-  if (exportBtn) exportBtn.textContent = `📷 导出图片 (${state.exportSize}×${state.exportSize})`;
+  if (exportBtn) {
+    exportBtn.innerHTML = `<i data-lucide="camera" class="icon-inline"></i> 导出图片 (${state.exportSize}×${state.exportSize})`;
+    if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [exportBtn] });
+  }
   
   // 更新预览标题
   const previewTitle = document.getElementById('previewTitle');

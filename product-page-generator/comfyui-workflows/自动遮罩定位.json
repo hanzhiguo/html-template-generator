@@ -1,0 +1,95 @@
+{
+  "3": {
+    "inputs": {
+      "image": "Gemini_Generated_Image_4oy4vv4oy4vv4oy4.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "15": {
+    "inputs": {
+      "prompt": [
+        "27",
+        0
+      ],
+      "threshold": 0.15,
+      "keep_model_loaded": false,
+      "add_background": "none",
+      "detection_limit": -1,
+      "sam3_model": [
+        "20",
+        0
+      ],
+      "images": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "easy sam3ImageSegmentation",
+    "_meta": {
+      "title": "SAM3 图像分割"
+    }
+  },
+  "20": {
+    "inputs": {
+      "model": "sam3.pt",
+      "segmentor": "image",
+      "device": "cuda",
+      "precision": "fp16"
+    },
+    "class_type": "easy sam3ModelLoader",
+    "_meta": {
+      "title": "加载 SAM3 模型"
+    }
+  },
+  "22": {
+    "inputs": {
+      "dilation": 6,
+      "mask": [
+        "15",
+        0
+      ]
+    },
+    "class_type": "ImpactDilateMask",
+    "_meta": {
+      "title": "Dilate Mask"
+    }
+  },
+  "23": {
+    "inputs": {
+      "amount": 3,
+      "device": "auto",
+      "mask": [
+        "22",
+        0
+      ]
+    },
+    "class_type": "MaskBlur+",
+    "_meta": {
+      "title": "🔧 Mask Blur"
+    }
+  },
+  "26": {
+    "inputs": {
+      "mask": [
+        "23",
+        0
+      ]
+    },
+    "class_type": "MaskPreview",
+    "_meta": {
+      "title": "预览遮罩"
+    }
+  },
+  "27": {
+    "inputs": {
+      "value": "man"
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "prompt"
+    }
+  }
+}

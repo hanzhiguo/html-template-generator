@@ -41,18 +41,15 @@
   function initColorSchemes() {
     const container = document.getElementById('colorSchemes');
     container.innerHTML = colorSchemes.map((scheme, i) => {
-      // 预览：文字背景色 + 主副标题颜色 + 强调色标识
       const bg = scheme.textBg ? scheme.textBgColor : 'transparent';
-      const border = scheme.textBg ? 'none' : '1px dashed #d1d5db';
-      return `<div onclick="applyColorScheme(${i})" style="display:flex;flex-direction:column;align-items:center;cursor:pointer;border-radius:6px;overflow:hidden;border:1px solid #e5e7eb;transition:all 0.15s;width:52px;" 
-        onmouseenter="this.style.borderColor='#3b82f6';this.style.transform='scale(1.05)'" 
-        onmouseleave="this.style.borderColor='#e5e7eb';this.style.transform='scale(1)'">
-        <div style="width:100%;height:28px;background:${bg};border:${border};display:flex;align-items:center;justify-content:center;position:relative;">
-          <div style="font-size:9px;font-weight:700;color:${scheme.titleColor};line-height:1;">Aa</div>
-          <div style="position:absolute;bottom:2px;left:3px;width:6px;height:6px;border-radius:50%;background:${scheme.accent};"></div>
-          <div style="position:absolute;bottom:3px;right:4px;font-size:5px;color:${scheme.subtitleColor};">副</div>
+      const border = scheme.textBg ? 'none' : '1px dashed var(--gray-300)';
+      return `<div class="color-scheme-card" onclick="applyColorScheme(${i})">
+        <div class="color-scheme-preview" style="background:${bg};border:${border};">
+          <div class="color-scheme-title" style="color:${scheme.titleColor};">Aa</div>
+          <div class="color-scheme-accent" style="background:${scheme.accent};"></div>
+          <div class="color-scheme-sub" style="color:${scheme.subtitleColor};">副</div>
         </div>
-        <div style="font-size:8px;color:#6b7280;padding:2px 0;white-space:nowrap;">${scheme.name}</div>
+        <div class="color-scheme-name">${scheme.name}</div>
       </div>`;
     }).join('');
   }
@@ -147,7 +144,7 @@
     }
     
     // 4. 如果启用了标注，重建Konva层
-    if (window.state.dimEnabled && window.state.dimensions && window.state.dimensions.length > 0) {
+    if (window.state.dimLayerVisible && window.state.dimensions && window.state.dimensions.length > 0) {
       if (typeof window.initKonvaOverlay === 'function') {
         // 使用setTimeout确保Canvas渲染完成后再初始化Konva
         setTimeout(() => {

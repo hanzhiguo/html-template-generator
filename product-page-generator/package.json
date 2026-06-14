@@ -1,6 +1,6 @@
 {
   "name": "product-page-generator",
-  "version": "0.2.0",
+  "version": "0.4.1",
   "description": "AI-powered product page generator with database",
   "main": "server/index.js",
   "scripts": {
@@ -19,7 +19,9 @@
     "handlebars": "^4.7.8",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.1.1",
+    "onnxruntime-web": "^1.26.0",
     "openai": "^4.0.0",
+    "sam-web": "^0.3.0",
     "sql.js": "^1.10.3"
   }
 }

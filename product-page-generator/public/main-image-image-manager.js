@@ -36,7 +36,11 @@
     const tempCtx = tempCanvas.getContext('2d');
     tempCtx.drawImage(originalImg, 0, 0, tw, th);
 
-    const previewSrc = tempCanvas.toDataURL('image/jpeg', 0.85);
+    // PNG 图片保留透明通道，JPEG 压缩不透明图片
+    const isPng = originalSrc && originalSrc.startsWith('data:image/png');
+    const previewSrc = isPng
+      ? tempCanvas.toDataURL('image/png')
+      : tempCanvas.toDataURL('image/jpeg', 0.85);
     const previewImg = new Image();
     previewImg.src = previewSrc;
 

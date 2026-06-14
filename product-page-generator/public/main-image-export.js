@@ -35,7 +35,10 @@
     window.state.exportSize = parseInt(select.value);
     // 更新导出按钮文本
     const exportBtn = document.getElementById('exportBtn');
-    if (exportBtn) exportBtn.textContent = `📷 导出图片 (${window.state.exportSize}×${window.state.exportSize})`;
+    if (exportBtn) {
+      exportBtn.innerHTML = `<i data-lucide="camera" class="icon-inline"></i> 导出图片 (${window.state.exportSize}×${window.state.exportSize})`;
+      if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [exportBtn] });
+    }
     // 更新预览标题
     const previewTitle = document.getElementById('previewTitle');
     if (previewTitle) previewTitle.textContent = `输出尺寸: ${window.state.exportSize} × ${window.state.exportSize}`;

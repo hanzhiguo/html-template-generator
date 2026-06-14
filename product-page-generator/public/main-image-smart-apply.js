@@ -76,8 +76,7 @@
   async function autoClassifyImages() {
     const token = window.getToken();
     if (!token) { 
-      window.showToast('请先登录', true); 
-      return; 
+      window.showToast('未登录，使用本地 Ollama 分类...', false); 
     }
     
     if (window.state.images.length === 0) { 
@@ -103,12 +102,11 @@
         return resizeImageToBase64(item.img.img || item.img, 500);
       });
       
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
       const res = await fetch('/api/image-classify', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + token
-        },
+        headers,
         body: JSON.stringify({ images: base64Images })
       });
       

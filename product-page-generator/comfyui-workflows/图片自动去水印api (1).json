@@ -1,0 +1,226 @@
+{
+  "3": {
+    "inputs": {
+      "image": "Gemini_Generated_Image_4oy4vv4oy4vv4oy4.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "8": {
+    "inputs": {
+      "padding": 35,
+      "region_type": "dominant",
+      "mask": [
+        "24",
+        1
+      ]
+    },
+    "class_type": "Mask Crop Region",
+    "_meta": {
+      "title": "Mask Crop Region"
+    }
+  },
+  "9": {
+    "inputs": {
+      "width": [
+        "8",
+        6
+      ],
+      "height": [
+        "8",
+        7
+      ],
+      "position": "top-left",
+      "x_offset": [
+        "8",
+        3
+      ],
+      "y_offset": [
+        "8",
+        2
+      ],
+      "image": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "ImageCrop+",
+    "_meta": {
+      "title": "🔧 Image Crop"
+    }
+  },
+  "10": {
+    "inputs": {
+      "crop_blending": 0.1,
+      "crop_sharpening": 0,
+      "image": [
+        "3",
+        0
+      ],
+      "crop_image": [
+        "11",
+        0
+      ],
+      "crop_data": [
+        "8",
+        1
+      ]
+    },
+    "class_type": "Image Paste Crop",
+    "_meta": {
+      "title": "Image Paste Crop"
+    }
+  },
+  "11": {
+    "inputs": {
+      "width": [
+        "8",
+        7
+      ],
+      "height": [
+        "8",
+        7
+      ],
+      "interpolation": "lanczos",
+      "method": "keep proportion",
+      "condition": "always",
+      "multiple_of": 0,
+      "image": [
+        "12",
+        0
+      ]
+    },
+    "class_type": "ImageResize+",
+    "_meta": {
+      "title": "🔧 Image Resize"
+    }
+  },
+  "12": {
+    "inputs": {
+      "seed": 480730295762472,
+      "inpaint_model": [
+        "13",
+        0
+      ],
+      "image": [
+        "9",
+        0
+      ],
+      "mask": [
+        "23",
+        0
+      ]
+    },
+    "class_type": "INPAINT_InpaintWithModel",
+    "_meta": {
+      "title": "Inpaint (using Model)"
+    }
+  },
+  "13": {
+    "inputs": {
+      "model_name": "big-lama.pt"
+    },
+    "class_type": "INPAINT_LoadInpaintModel",
+    "_meta": {
+      "title": "Load Inpaint Model"
+    }
+  },
+  "14": {
+    "inputs": {
+      "images": [
+        "10",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "预览图像"
+    }
+  },
+  "15": {
+    "inputs": {
+      "prompt": "watermark",
+      "threshold": 0.15,
+      "keep_model_loaded": false,
+      "add_background": "none",
+      "detection_limit": -1,
+      "sam3_model": [
+        "20",
+        0
+      ],
+      "images": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "easy sam3ImageSegmentation",
+    "_meta": {
+      "title": "SAM3 图像分割"
+    }
+  },
+  "20": {
+    "inputs": {
+      "model": "sam3.pt",
+      "segmentor": "image",
+      "device": "cuda",
+      "precision": "fp32"
+    },
+    "class_type": "easy sam3ModelLoader",
+    "_meta": {
+      "title": "加载 SAM3 模型"
+    }
+  },
+  "22": {
+    "inputs": {
+      "dilation": 6,
+      "mask": [
+        "15",
+        0
+      ]
+    },
+    "class_type": "ImpactDilateMask",
+    "_meta": {
+      "title": "Dilate Mask"
+    }
+  },
+  "23": {
+    "inputs": {
+      "amount": 3,
+      "device": "auto",
+      "mask": [
+        "22",
+        0
+      ]
+    },
+    "class_type": "MaskBlur+",
+    "_meta": {
+      "title": "🔧 Mask Blur"
+    }
+  },
+  "24": {
+    "inputs": {
+      "threshold": 0.06,
+      "image": [
+        "3",
+        0
+      ],
+      "model": [
+        "25",
+        0
+      ]
+    },
+    "class_type": "WatermarkDetector",
+    "_meta": {
+      "title": "Detect Watermarks"
+    }
+  },
+  "25": {
+    "inputs": {},
+    "class_type": "WatermarkDetectorLoader",
+    "_meta": {
+      "title": "Load Watermark Detector"
+    }
+  }
+}

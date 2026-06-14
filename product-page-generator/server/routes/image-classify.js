@@ -3,13 +3,13 @@
  * 使用AI视觉模型自动分类产品图片
  */
 const express = require('express');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, optionalAuth } = require('../middleware/auth');
 const config = require('../agent/config');
 const OpenAI = require('openai');
 
 const router = express.Router();
 
-router.use(authMiddleware);
+router.use(optionalAuth);
 
 const CATEGORIES = ['场景图', '白底图', '套装图', '细节图'];
 const CATEGORY_MAP = {

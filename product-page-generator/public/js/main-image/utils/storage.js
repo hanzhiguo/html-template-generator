@@ -48,7 +48,7 @@ export function loadTemplate(name) {
   render();
   updateUIFromState();
   
-  if (state.dimEnabled && typeof window.initKonvaOverlay === 'function') {
+  if (state.dimLayerVisible && typeof window.initKonvaOverlay === 'function') {
     window.initKonvaOverlay();
   }
   
@@ -126,18 +126,10 @@ function updateUIFromState() {
   if (inputs.imageGap) inputs.imageGap.value = state.imageGap;
   if (inputs.imageRadius) inputs.imageRadius.value = state.imageRadius;
   
-  const dimToggle = document.getElementById('dimToggle');
-  const dimPanel = document.getElementById('dimPanel');
-  if (dimToggle) {
-    dimToggle.checked = state.dimEnabled;
-    if (dimPanel) {
-      dimPanel.style.display = state.dimEnabled ? 'block' : 'none';
-    }
-  }
   
   const dragOverlay = document.getElementById('dragOverlay');
   if (dragOverlay) {
-    dragOverlay.style.pointerEvents = state.dimEnabled ? 'none' : 'auto';
+    dragOverlay.style.pointerEvents = state.dimLayerVisible ? 'none' : 'auto';
   }
   
   const dimColor = document.getElementById('dimColor');
@@ -174,7 +166,8 @@ function updateUIFromState() {
     exportSizeSelect.value = state.exportSize;
     const exportBtn = document.getElementById('exportBtn');
     if (exportBtn) {
-      exportBtn.textContent = `📷 导出图片 (${state.exportSize}×${state.exportSize})`;
+      exportBtn.innerHTML = `<i data-lucide="camera" class="icon-inline"></i> 导出图片 (${state.exportSize}×${state.exportSize})`;
+      if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [exportBtn] });
     }
     const previewTitle = document.querySelector('.preview-title');
     if (previewTitle) {

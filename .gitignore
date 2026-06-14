@@ -9,3 +9,15 @@ dist/
 *.swp
 *.swo
 Thumbs.db
+
+# Large local directories (not for version control)
+ComfyUI/
+jimeng-free-api-al0412/node_modules/
+
+# Archives
+*.zip
+
+# Test output / screenshots
+screenshot_*.png
+test-output.txt
+test_result.txt

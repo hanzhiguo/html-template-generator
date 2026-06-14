@@ -1,0 +1,102 @@
+{
+  "3": {
+    "inputs": {
+      "image": "Gemini_Generated_Image_4oy4vv4oy4vv4oy4.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "12": {
+    "inputs": {
+      "seed": 480730295762473,
+      "inpaint_model": [
+        "13",
+        0
+      ],
+      "image": [
+        "3",
+        0
+      ],
+      "mask": [
+        "23",
+        0
+      ]
+    },
+    "class_type": "INPAINT_InpaintWithModel",
+    "_meta": {
+      "title": "Inpaint (using Model)"
+    }
+  },
+  "13": {
+    "inputs": {
+      "model_name": "big-lama.pt"
+    },
+    "class_type": "INPAINT_LoadInpaintModel",
+    "_meta": {
+      "title": "Load Inpaint Model"
+    }
+  },
+  "14": {
+    "inputs": {
+      "images": [
+        "12",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "预览图像"
+    }
+  },
+  "22": {
+    "inputs": {
+      "dilation": 6,
+      "mask": [
+        "27",
+        0
+      ]
+    },
+    "class_type": "ImpactDilateMask",
+    "_meta": {
+      "title": "Dilate Mask"
+    }
+  },
+  "23": {
+    "inputs": {
+      "amount": 3,
+      "device": "auto",
+      "mask": [
+        "22",
+        0
+      ]
+    },
+    "class_type": "MaskBlur+",
+    "_meta": {
+      "title": "🔧 Mask Blur"
+    }
+  },
+  "26": {
+    "inputs": {
+      "image": "clipspace/clipspace-painted-masked-1781339458041.png [input]"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载遮罩"
+    }
+  },
+  "27": {
+    "inputs": {
+      "channel": "red",
+      "image": [
+        "26",
+        0
+      ]
+    },
+    "class_type": "ImageToMask",
+    "_meta": {
+      "title": "图像转换为遮罩"
+    }
+  }
+}

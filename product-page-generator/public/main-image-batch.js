@@ -8,7 +8,7 @@
 
   // 类型常量
   const TYPE_NAMES = { scene: '场景图', white: '白底图', set: '套装图', detail: '细节图' };
-  const TYPE_ICONS = { scene: '🏞', white: '⬜', set: '📦', detail: '🔍' };
+  const TYPE_ICONS = { scene: 'image', white: 'square', set: 'package', detail: 'search' };
   const ALL_TYPES = ['scene', 'white', 'set', 'detail'];
 
   /**
@@ -89,11 +89,11 @@
     // 显示每个slot的类型和可用图片数
     slotInfo.forEach(info => {
       const typeName = TYPE_NAMES[info.type] || info.type;
-      const typeIcon = TYPE_ICONS[info.type] || '';
+      const typeIcon = TYPE_ICONS[info.type] || 'image';
       const color = info.available > 0 ? '#059669' : '#dc2626';
       html += `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:3px 6px;border-radius:4px;background:#fafafa;border:1px solid #e5e7eb;margin-bottom:3px;">
-        <span style="font-size:11px;">${typeIcon} 位置${info.slot + 1}: ${typeName}</span>
+        <span style="font-size:11px;display:flex;align-items:center;gap:3px;"><i data-lucide="${typeIcon}" style="width:12px;height:12px;"></i> 位置${info.slot + 1}: ${typeName}</span>
         <span style="font-size:10px;color:${color};">${info.available}张可用</span>
       </div>`;
     });
@@ -102,13 +102,14 @@
     const untyped = window.state.images.filter(img => !img.type);
     if (untyped.length > 0) {
       html += `<div style="padding:3px 6px;border-radius:4px;background:#fffbeb;border:1px solid #fde68a;margin-bottom:3px;">
-        <span style="font-size:10px;color:#92400e;">📋 ${untyped.length}张未分类图片不会参与生成</span>
+        <span style="font-size:10px;color:#92400e;"><i data-lucide="clipboard-list" style="width:11px;height:11px;vertical-align:-1px;"></i> ${untyped.length}张未分类图片不会参与生成</span>
       </div>`;
     }
     
     html += `<div style="font-size:9px;color:#6b7280;margin-top:4px;">按图片顺序对应生成：第1张→第1组，第2张→第2组...<br>拖拽图片可调整顺序和分类</div>`;
     
     container.innerHTML = html;
+    if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [container] });
     
     // 更新生成数量
     const batchCount = document.getElementById('batchCount');
@@ -231,7 +232,7 @@
     
     progressText.textContent = `完成！共生成并下载 ${genCount} 张JPG图片`;
     resultsEl.style.display = 'block';
-    genBtn.textContent = '🔄 批量导出';
+    genBtn.innerHTML = '<i data-lucide="refresh-cw" class="icon-inline"></i> 批量导出';
     genBtn.disabled = false;
     window.showToast(`批量生成完成，已下载 ${genCount} 张JPG`);
   }
@@ -268,10 +269,10 @@
       
       window.state.dimensions = origDimensions.map(d => ({
         ...d,
-        x1: d.x1 / origDisplayScale,
-        y1: d.y1 / origDisplayScale,
-        x2: d.x2 / origDisplayScale,
-        y2: d.y2 / origDisplayScale
+        x1: d.x1,
+        y1: d.y1,
+        x2: d.x2,
+        y2: d.y2
       }));
       window.displayScale = 1;
       

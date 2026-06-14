@@ -9,6 +9,8 @@
   // 全局变量
   let copyLang = 'zh';
   let lastCopyData = null; // 缓存上次结果用于语言切换
+  let appliedCopyIndex = -1; // 当前应用的文案索引
+  let appliedCopyLang = 'zh'; // 当前应用的文案语言
 
   /**
    * 设置文案语言
@@ -19,10 +21,44 @@
     document.getElementById('langZh').style.color = lang === 'zh' ? '#fff' : '#6b7280';
     document.getElementById('langEn').style.background = lang === 'en' ? '#3b82f6' : 'transparent';
     document.getElementById('langEn').style.color = lang === 'en' ? '#fff' : '#6b7280';
-    // 如果已有文案，切换语言时直接切换显示
+
+    // 如果已有文案，切换语言时直接切换列表显示
     if (lastCopyData) {
-      const list = copyLang === 'en' ? (lastCopyData.copyListEn || lastCopyData.copyList) : lastCopyData.copyList;
+      const listEn = lastCopyData.copyListEn && lastCopyData.copyListEn.length > 0 ? lastCopyData.copyListEn : null;
+      const list = copyLang === 'en' ? (listEn || lastCopyData.copyList) : lastCopyData.copyList;
       renderAICopyList(list, lastCopyData.source, lastCopyData.productData);
+    }
+
+    // 如果已应用了文案到预览区，切换预览区文字语言
+    if (appliedCopyIndex >= 0 && lastCopyData) {
+      const listEn = lastCopyData.copyListEn && lastCopyData.copyListEn.length > 0 ? lastCopyData.copyListEn : null;
+      const targetList = copyLang === 'en' ? (listEn || lastCopyData.copyList) : lastCopyData.copyList;
+      if (targetList && targetList.length > 0) {
+        const targetIndex = Math.min(appliedCopyIndex, targetList.length - 1);
+        const targetItem = targetList[targetIndex];
+        if (targetItem) {
+          appliedCopyLang = copyLang;
+          window.state.mainTitle = targetItem.title;
+          window.state.subTitle = targetItem.subtitle;
+          document.getElementById('mainTitle').value = targetItem.title;
+          document.getElementById('subTitle').value = targetItem.subtitle;
+          window.render();
+        }
+      }
+    }
+    // 如果没有应用文案但有搜索结果，自动应用第一条
+    else if (lastCopyData && appliedCopyIndex < 0) {
+      const listEn = lastCopyData.copyListEn && lastCopyData.copyListEn.length > 0 ? lastCopyData.copyListEn : null;
+      const targetList = copyLang === 'en' ? (listEn || lastCopyData.copyList) : lastCopyData.copyList;
+      if (targetList && targetList.length > 0) {
+        appliedCopyIndex = 0;
+        appliedCopyLang = copyLang;
+        window.state.mainTitle = targetList[0].title;
+        window.state.subTitle = targetList[0].subtitle;
+        document.getElementById('mainTitle').value = targetList[0].title;
+        document.getElementById('subTitle').value = targetList[0].subtitle;
+        window.render();
+      }
     }
   }
 
@@ -63,6 +99,17 @@
         const list = copyLang === 'en' ? (data.copyListEn || data.copyList) : data.copyList;
         renderAICopyList(list, data.source, data.productData);
         
+        // 自动应用第一条文案到预览区
+        if (list && list.length > 0) {
+          appliedCopyIndex = 0;
+          appliedCopyLang = copyLang;
+          window.state.mainTitle = list[0].title;
+          window.state.subTitle = list[0].subtitle;
+          document.getElementById('mainTitle').value = list[0].title;
+          document.getElementById('subTitle').value = list[0].subtitle;
+          window.render();
+        }
+        
         const sourceLabel = data.source === 'document' ? '文档解析' : data.source === 'document+ai' ? '文档+AI优化' : data.source === 'ai' ? 'AI生成' : '默认';
         const fileCount = data.matchedFiles?.length || 0;
         window.showToast(`${sourceLabel} ${list.length} 组文案${fileCount > 0 ? ' (匹配' + fileCount + '个文档)' : ''}`);
@@ -80,13 +127,14 @@
    */
   function renderAICopyList(copyList, source, productData) {
     const container = document.getElementById('aiCopyList');
+    if (!container) return;
     container.style.display = 'block';
     
-    const sourceLabel = source === 'document' ? '📄 文档解析' : source === 'document+ai' ? '📄+✨ AI优化' : source === 'ai' ? '✨ AI生成' : '📋 默认';
+    const sourceIcon = source === 'document' ? 'file-text' : source === 'document+ai' ? 'file-text' : source === 'ai' ? 'sparkles' : 'clipboard-list';
+    const sourceLabel = source === 'document' ? '文档解析' : source === 'document+ai' ? '文档+AI优化' : source === 'ai' ? 'AI生成' : '默认';
     
-    let html = `<div style="font-size:9px;color:#9ca3af;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">
-      <span>来源: ${sourceLabel}</span>
-      <span style="cursor:pointer;color:#3b82f6;" onclick="setCopyLang(copyLang==='zh'?'en':'zh')">${copyLang === 'zh' ? '切换英文 ▸' : '◂ 切换中文'}</span>
+    let html = `<div style="font-size:9px;color:#9ca3af;margin-bottom:4px;">
+      <span><i data-lucide="${sourceIcon}" style="width:11px;height:11px;vertical-align:-1px;"></i> 来源: ${sourceLabel}</span>
     </div>`;
     
     // 产品信息摘要
@@ -105,13 +153,16 @@
     `).join('');
     
     container.innerHTML = html;
+    if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [container] });
     
     // 显示AI优化按钮
     const optBar = document.getElementById('aiOptimizeBar');
-    if (source === 'document' || source === 'default') {
-      optBar.style.display = 'block';
-    } else {
-      optBar.style.display = 'none';
+    if (optBar) {
+      if (source === 'document' || source === 'default') {
+        optBar.style.display = 'block';
+      } else {
+        optBar.style.display = 'none';
+      }
     }
     
     // 悬停效果
@@ -132,6 +183,10 @@
     const title = item.dataset.title;
     const subtitle = item.dataset.subtitle;
     
+    // 保存当前应用的文案索引和语言
+    appliedCopyIndex = index;
+    appliedCopyLang = copyLang;
+    
     window.state.mainTitle = title;
     window.state.subTitle = subtitle;
     document.getElementById('mainTitle').value = title;
@@ -140,11 +195,15 @@
     window.showToast('文案已应用');
   }
 
-  // 暴露到全局
-  window.copyLang = copyLang;
+  // 暴露到全局（copyLang 用 getter 确保始终获取最新值）
+  Object.defineProperty(window, 'copyLang', { get: () => copyLang, configurable: true });
   window.setCopyLang = setCopyLang;
   window.generateAICopy = generateAICopy;
   window.renderAICopyList = renderAICopyList;
   window.applyAICopy = applyAICopy;
+  // 外部模块更新文案数据（如文档加载时），确保语言切换功能正常
+  window.updateCopyData = function(data) {
+    lastCopyData = data;
+  };
 
 })();

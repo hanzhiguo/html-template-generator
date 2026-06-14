@@ -44,8 +44,9 @@ function toggleMaskLayer(enabled) {
     status.className = 'toggle-status ' + (enabled ? 'visible' : 'hidden');
   }
   if (eyeBtn) {
-    eyeBtn.textContent = enabled ? '👁' : '👁‍🗨️';
+    eyeBtn.innerHTML = enabled ? '<i data-lucide="eye" class="icon-xs"></i>' : '<i data-lucide="eye-off" class="icon-xs"></i>';
     eyeBtn.classList.toggle('hidden-layer', !enabled);
+    if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [eyeBtn] });
   }
   
   if (enabled) {
@@ -95,7 +96,7 @@ function deactivateBrushMode() {
   if (dragOverlay) dragOverlay.style.pointerEvents = 'auto';
   
   // 如果标注也启用，保持覆盖层可见给标注用
-  if (!state.dimEnabled || !state.dimLayerVisible) {
+  if (!state.dimLayerVisible) {
     if (konvaOverlay) {
       konvaOverlay.style.pointerEvents = 'none';
     }
@@ -112,7 +113,7 @@ function deactivateBrushMode() {
   hideBrushCursor();
   
   // 如果标注启用，重新初始化标注覆盖层
-  if (state.dimEnabled && typeof initKonvaOverlay === 'function') {
+  if (state.dimLayerVisible && typeof initKonvaOverlay === 'function') {
     initKonvaOverlay();
   }
 }
@@ -549,7 +550,7 @@ function onBrushTabSwitch(tabName) {
   } else if (tabName !== 'mask') {
     deactivateBrushMode();
     // 如果标注启用且切换到标注 tab，激活标注模式
-    if (tabName === 'dim' && state.dimEnabled && typeof initKonvaOverlay === 'function') {
+    if (tabName === 'dim' && state.dimLayerVisible && typeof initKonvaOverlay === 'function') {
       initKonvaOverlay();
     }
   }
