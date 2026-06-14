@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -13,33 +13,23 @@
 </head>
 <body>
   <nav class="navbar">
-    <a href="index.html">← 返回首页</a>
     <h1><i data-lucide="layout-template" class="icon-inline"></i> 主图模板生成器</h1>
+    <div class="navbar-doc-group">
+      <input type="text" id="docSearchInput" class="navbar-doc-search" placeholder="搜索产品文档..." onkeydown="if(event.key==='Enter')searchDocByKeyword()">
+      <select id="docDropdownSelect" class="navbar-doc-select" onchange="loadDocByDropdown()">
+        <option value="">-- 选择文档 --</option>
+      </select>
+      <button onclick="openDocViewModal()" class="navbar-doc-view-btn"><i data-lucide="file-text" class="icon-inline"></i> 查看文档</button>
+      <span id="docStatusInfo" class="doc-status-info"></span>
+    </div>
     <div class="navbar-right">
       <span id="aiEditStatusDot" class="navbar-status-dot" title="AI套图 API 状态"></span>
+      <a href="index.html" class="navbar-back-btn">← 返回首页</a>
       <button id="settingsBtn" class="navbar-settings-btn" onclick="openSettingsModal()"><i data-lucide="settings" class="icon-inline"></i> 设置</button>
     </div>
   </nav>
   
-  <!-- 文档工具栏（模板布局栏上方） -->
-  <div class="doc-toolbar">
-    <span class="doc-toolbar-label"><i data-lucide="file-text" class="icon-inline"></i> 产品文档</span>
-    <div class="doc-search-group">
-      <input type="text" id="docSearchInput" class="doc-search-input" placeholder="输入产品名称搜索文档..." onkeydown="if(event.key==='Enter')searchDocByKeyword()">
-      <button onclick="searchDocByKeyword()" class="doc-search-btn">搜索</button>
-    </div>
-    <div class="doc-toolbar-divider"></div>
-    <div class="doc-dropdown-group">
-      <span class="doc-dropdown-label">下拉选择:</span>
-      <select id="docDropdownSelect" class="doc-dropdown-select" onchange="loadDocByDropdown()">
-        <option value="">-- 选择文档 --</option>
-      </select>
-      <button onclick="openDocViewModal()" class="doc-view-btn"><i data-lucide="file-text" class="icon-inline"></i> 查看文档</button>
-    </div>
-    <div id="docStatusInfo" class="doc-status-info"></div>
-  </div>
-
-  <!-- 模板布局栏（紧贴页眉下方） -->
+  <!-- 模板布局栏（navbar下方第一行） -->
   <div class="template-bar">
     <div class="template-bar-left">
       <span class="template-bar-label"><i data-lucide="layout-grid" class="icon-inline"></i> 模板布局</span>
@@ -252,6 +242,13 @@
             </div>
             <div class="image-type-row drop-zone" id="detailList" data-type="detail"></div>
           </div>
+          <div class="image-type-group" id="handheldGroup">
+            <div class="image-type-header" data-type="handheld">
+              <span><i data-lucide="hand" class="icon-inline"></i> 手持图 (<span id="handheldCount">0</span>)</span>
+              <button class="type-select-btn" onclick="selectAllOfType('handheld')" title="全选手持图组">全选</button>
+            </div>
+            <div class="image-type-row drop-zone" id="handheldList" data-type="handheld"></div>
+          </div>
           <div class="image-type-group" id="untypedGroup">
             <div class="image-type-header" data-type="">
               <span><i data-lucide="list" class="icon-inline"></i> 未分类 (<span id="untypedCount">0</span>)</span>
@@ -263,6 +260,7 @@
         
         <!-- 图片调整面板（常驻，始终显示当前活跃图片参数） -->
         <div id="imageAdjustPanel" class="sidebar-section" style="display:none;">
+          <h4 style="margin-bottom: 8px; font-size: 14px;"><span id="adjustImageName"></span></h4>
           <div class="batch-scale-row">
             <label class="adjust-label">缩放:</label>
             <input type="range" id="imgScaleValue" min="10" max="300" value="100" oninput="onImageAdjust()">
@@ -283,8 +281,8 @@
           </div>
           <div class="adjust-hint">提示: 勾选/Ctrl+点击多选 | Shift范围选 | 拖拽移动 | 滚轮缩放</div>
           <div class="batch-buttons">
-            <button class="btn btn-secondary btn-sm" onclick="resetActiveImageAdjust()"><i data-lucide="undo" class="icon-inline"></i> 重置</button>
-            <button class="btn btn-secondary btn-sm" onclick="applyAdjustToAll()">应用到全部</button>
+            <button class="btn btn-secondary btn-sm" onclick="resetActiveImageAdjust()"><i data-lucide="undo" class="icon-inline"></i> 重置并应用全部</button>
+            <button class="btn btn-secondary btn-sm" onclick="applyAdjustToAll()"><i data-lucide="copy" class="icon-inline"></i> 应用到全部</button>
           </div>
         </div>
         
@@ -941,7 +939,7 @@
         <div class="sidebar-section">
           <h3><span class="section-icon">🧪</span>自定义提示词</h3>
           <div class="form-group ai-custom-prompt">
-            <textarea id="aiCustomPrompt" rows="3" placeholder="直接输入提示词，发送生图..."></textarea>
+            <textarea id="aiCustomPrompt" rows="3" placeholder="输入提示词，直接文生图；如有上传图片则作为参考图..."></textarea>
           </div>
           <div class="ai-custom-row">
             <select id="aiCustomRatio" class="ai-custom-ratio">
@@ -1029,6 +1027,20 @@
             白底图 / 手持图 / AI场景 / 实拍场景 / 3:4比例
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- 生成历史面板（竖向缩略图列表，可自动隐藏） -->
+    <div class="history-panel" id="historyPanel">
+      <div class="history-header">
+        <span class="history-title"><i data-lucide="clock" class="icon-inline"></i> 生成历史</span>
+        <button class="history-toggle-btn" id="historyToggleBtn" onclick="toggleHistoryPanel()" title="切换显示/隐藏">
+          <i data-lucide="chevron-right" class="icon-inline" id="historyToggleIcon"></i>
+        </button>
+      </div>
+      <div class="history-body" id="historyBody">
+        <div class="history-loading" id="historyLoading">加载中...</div>
+        <div id="historyList" class="history-list"></div>
       </div>
     </div>
   </div>

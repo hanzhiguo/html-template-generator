@@ -40,9 +40,18 @@
       if (mainNormal) mainNormal.style.display = 'none';
       if (mainAIEdit) mainAIEdit.style.display = 'flex';
       if (typeof loadProductSpecs === 'function') loadProductSpecs();
+      // 显示并刷新历史面板
+      const hp = document.getElementById('historyPanel');
+      if (hp) {
+        hp.style.display = 'flex';
+        if (typeof refreshHistory === 'function') refreshHistory();
+      }
     } else {
       if (mainNormal) mainNormal.style.display = 'flex';
       if (mainAIEdit) mainAIEdit.style.display = 'none';
+      // 非AI编辑时隐藏历史面板
+      const hp = document.getElementById('historyPanel');
+      if (hp) hp.style.display = 'none';
     }
     
     // 根据Tab调整交互层优先级

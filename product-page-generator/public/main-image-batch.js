@@ -7,9 +7,9 @@
   'use strict';
 
   // 类型常量
-  const TYPE_NAMES = { scene: '场景图', white: '白底图', set: '套装图', detail: '细节图' };
-  const TYPE_ICONS = { scene: 'image', white: 'square', set: 'package', detail: 'search' };
-  const ALL_TYPES = ['scene', 'white', 'set', 'detail'];
+  const TYPE_NAMES = { scene: '场景图', white: '白底图', set: '套装图', detail: '细节图', handheld: '手持图' };
+  const TYPE_ICONS = { scene: 'image', white: 'square', set: 'package', detail: 'search', handheld: 'hand' };
+  const ALL_TYPES = ['scene', 'white', 'set', 'detail', 'handheld'];
 
   /**
    * 切换批量模式

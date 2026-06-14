@@ -43,13 +43,10 @@
     container.innerHTML = colorSchemes.map((scheme, i) => {
       const bg = scheme.textBg ? scheme.textBgColor : 'transparent';
       const border = scheme.textBg ? 'none' : '1px dashed var(--gray-300)';
-      return `<div class="color-scheme-card" onclick="applyColorScheme(${i})">
+      return `<div class="color-scheme-card" title="${scheme.name}" onclick="applyColorScheme(${i})">
         <div class="color-scheme-preview" style="background:${bg};border:${border};">
-          <div class="color-scheme-title" style="color:${scheme.titleColor};">Aa</div>
-          <div class="color-scheme-accent" style="background:${scheme.accent};"></div>
-          <div class="color-scheme-sub" style="color:${scheme.subtitleColor};">副</div>
+          <span class="color-scheme-title" style="color:${scheme.titleColor};">Aa</span>
         </div>
-        <div class="color-scheme-name">${scheme.name}</div>
       </div>`;
     }).join('');
   }

@@ -9,7 +9,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // API路由放在静态文件之前，避免被拦截
@@ -57,6 +57,8 @@ app.use('/api/comfyui', comfyuiRoutes);
 
 // 静态文件
 app.use(express.static(path.join(__dirname, '..', 'public')));
+// 提供字体文件（fonts 目录）
+app.use('/fonts', express.static(path.join(__dirname, '..', 'fonts')));
 // 提供 node_modules 中的 sam-web 和 onnxruntime-web
 app.use('/npm/sam-web', express.static(path.join(__dirname, '..', 'node_modules', 'sam-web', 'dist')));
 app.use('/npm/onnxruntime-web', express.static(path.join(__dirname, '..', 'node_modules', 'onnxruntime-web', 'dist')));

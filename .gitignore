@@ -21,3 +21,6 @@ jimeng-free-api-al0412/node_modules/
 screenshot_*.png
 test-output.txt
 test_result.txt
+
+# Generated outputs
+product-page-generator/outputs/

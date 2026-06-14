@@ -461,11 +461,10 @@
         }
         
         // 图片拖拽
-        if (state.dragState.isDragging) {
+        if (state.dragState.isDragging && state.imageDragState.isDragging) {
           const dx = x - state.dragState.startX;
           const dy = y - state.dragState.startY;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          
           if (dist > 5) {
             state.dragState.hasMoved = true;
           }
@@ -474,44 +473,43 @@
           const tp2 = inverseTransformPoint(x, y);
           const dropIndex = getImageIndexAtPosition(tp2.x, tp2.y);
           
+          // 更新交换指示器（仅单选时支持交换）
           if (dropIndex !== -1 && dropIndex !== state.dragState.dragIndex && state.multiSelectedIndices.length === 1) {
-            // 拖到其他图片位置上，显示交换指示器（仅单选时支持交换）
             state.dragState.dropIndex = dropIndex;
-            state.imageDragState.isDragging = false; // 不再移动offset
-            render();
           } else {
-            // 在同一图片区域内拖拽，移动图片offset
             state.dragState.dropIndex = -1;
-            const imgIdx = state.imageDragState.index;
-            if (imgIdx >= 0 && imgIdx < state.images.length) {
-              const dx = x - state.imageDragState.startX;
-              const dy = y - state.imageDragState.startY;
-              
-              // 使用记录的multiStartOffsets实现整体移动
-              if (state.multiSelectedIndices.length > 1 && state.imageDragState.multiStartOffsets) {
-                // 多选：所有选中图片基于各自的起始位置整体移动
-                state.multiSelectedIndices.forEach(idx => {
-                  if (idx < state.images.length && state.imageDragState.multiStartOffsets[idx]) {
-                    const startOffset = state.imageDragState.multiStartOffsets[idx];
-                    state.images[idx].offsetX = Math.round(startOffset.offsetX - dx);
-                    state.images[idx].offsetY = Math.round(startOffset.offsetY - dy);
-                  }
-                });
-              } else {
-                // 单选：只移动当前图片
-                state.images[imgIdx].offsetX = Math.round(state.imageDragState.startOffsetX - dx);
-                state.images[imgIdx].offsetY = Math.round(state.imageDragState.startOffsetY - dy);
-              }
-              
-              // 同步更新调整面板（显示主图片的值）
-              if (state.activeImageIndex === imgIdx) {
-                document.getElementById('imgOffsetX').value = state.images[imgIdx].offsetX;
-                document.getElementById('imgOffsetXDisplay').value = state.images[imgIdx].offsetX;
-                document.getElementById('imgOffsetY').value = state.images[imgIdx].offsetY;
-                document.getElementById('imgOffsetYDisplay').value = state.images[imgIdx].offsetY;
-              }
-              render();
+          }
+          
+          // 移动图片offset（单张和多选都支持）
+          const imgIdx = state.imageDragState.index;
+          if (imgIdx >= 0 && imgIdx < state.images.length) {
+            const moveDx = x - state.imageDragState.startX;
+            const moveDy = y - state.imageDragState.startY;
+            
+            // 使用记录的multiStartOffsets实现整体移动
+            if (state.multiSelectedIndices.length > 1 && state.imageDragState.multiStartOffsets) {
+              // 多选：所有选中图片基于各自的起始位置整体移动
+              state.multiSelectedIndices.forEach(idx => {
+                if (idx < state.images.length && state.imageDragState.multiStartOffsets[idx]) {
+                  const startOffset = state.imageDragState.multiStartOffsets[idx];
+                  state.images[idx].offsetX = Math.round(startOffset.offsetX - moveDx);
+                  state.images[idx].offsetY = Math.round(startOffset.offsetY - moveDy);
+                }
+              });
+            } else {
+              // 单选：只移动当前图片
+              state.images[imgIdx].offsetX = Math.round(state.imageDragState.startOffsetX - moveDx);
+              state.images[imgIdx].offsetY = Math.round(state.imageDragState.startOffsetY - moveDy);
             }
+            
+            // 同步更新调整面板（显示主图片的值）
+            if (state.activeImageIndex === imgIdx) {
+              document.getElementById('imgOffsetX').value = state.images[imgIdx].offsetX;
+              document.getElementById('imgOffsetXDisplay').value = state.images[imgIdx].offsetX;
+              document.getElementById('imgOffsetY').value = state.images[imgIdx].offsetY;
+              document.getElementById('imgOffsetYDisplay').value = state.images[imgIdx].offsetY;
+            }
+            render();
           }
         }
       });
@@ -1076,9 +1074,18 @@
         document.getElementById('mainContentNormal').style.display = 'none';
         document.getElementById('mainContentAIEdit').style.display = 'flex';
         loadProductSpecs();
+        // 切换到AI编辑时刷新历史面板、显示history panel
+        const hp = document.getElementById('historyPanel');
+        if (hp) {
+          hp.style.display = 'flex';
+          if (typeof refreshHistory === 'function') refreshHistory();
+        }
       } else {
         document.getElementById('mainContentNormal').style.display = 'flex';
         document.getElementById('mainContentAIEdit').style.display = 'none';
+        // 非AI编辑时隐藏历史面板
+        const hp = document.getElementById('historyPanel');
+        if (hp) hp.style.display = 'none';
       }
     }
     

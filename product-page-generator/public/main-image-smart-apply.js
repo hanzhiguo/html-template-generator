@@ -16,7 +16,7 @@
     }
     
     // 自动推断slotTypes：根据各类型组的数量智能分配
-    const typeGroups = { scene: [], white: [], set: [], detail: [] };
+    const typeGroups = { scene: [], white: [], set: [], detail: [], handheld: [] };
     window.state.images.forEach((img, i) => {
       if (typeGroups[img.type]) typeGroups[img.type].push(i);
     });
@@ -35,7 +35,7 @@
       window.state.slotTypes = Array(templateCount).fill(availableTypes[0]);
     } else {
       // 多种类型：按默认策略分配（场景→白底→套装→细节）
-      const priorityOrder = ['scene', 'white', 'set', 'detail'];
+      const priorityOrder = ['scene', 'white', 'handheld', 'set', 'detail'];
       let slotIdx = 0;
       for (const type of priorityOrder) {
         if (typeGroups[type].length > 0 && slotIdx < templateCount) {
@@ -46,7 +46,7 @@
     
     window.applySlotTypes();
     const names = [...new Set(window.state.slotTypes)].map(t => 
-      ({ scene: '场景图', white: '白底图', set: '套装图', detail: '细节图' })[t] || t
+      ({ scene: '场景图', white: '白底图', set: '套装图', detail: '细节图', handheld: '手持图' })[t] || t
     ).join('、');
     window.showToast(`智能分配：${names}`);
   }
@@ -99,7 +99,8 @@
     try {
       // 缩小图片并转为base64
       const base64Images = toClassify.map(item => {
-        return resizeImageToBase64(item.img.img || item.img, 500);
+        // 使用原始图片（已加载完成），previewImg可能还未加载完成导致base64为空
+        return resizeImageToBase64(item.img.imgOriginal || item.img.img || item.img, 500);
       });
       
       const headers = { 'Content-Type': 'application/json' };

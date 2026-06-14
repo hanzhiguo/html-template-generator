@@ -211,8 +211,8 @@
           const titleMatch = data.content.match(/^#\s+(.+)/m) || data.content.match(/^##\s+(.+)/m);
           const docTitle = titleMatch ? titleMatch[1].trim() : filename.replace(/\.md$/i, '');
 
-          // 4. 状态信息显示文档名（不覆盖搜索框，保留用户输入）
-          document.getElementById('docStatusInfo').textContent = `已加载: ${docTitle}`;
+          // 4. 状态信息清空（不显示已加载提示）
+          document.getElementById('docStatusInfo').textContent = ``;
 
           // 5. 自动加载文字TAB的文档文案（用文件名搜索更可靠）
           const searchName = filename.replace(/\.md$/i, '');
@@ -748,7 +748,7 @@
           await Promise.all(analysisPromises);
         }
 
-        // 预生成所有场景提示词（并发）
+        // 预生成所有场景提示词（并发）：返回 { prompt_1x1, prompt_3x4 }
         const promptMap = {};
         const promptPromises = [];
         for (let imgIdx = 0; imgIdx < selectedImgs.length; imgIdx++) {
@@ -759,13 +759,18 @@
           if (selectedTypes.includes('ai-scene')) {
             promptPromises.push((async () => {
               if (sceneModes['ai-scene'] === 'manual') {
-                promptMap[`ai-scene_${imgIdx}`] = document.getElementById('aiPromptAISceneManual')?.value?.trim() || '';
+                const manualPrompt = document.getElementById('aiPromptAISceneManual')?.value?.trim() || '';
+                promptMap[`ai-scene_1x1_${imgIdx}`] = manualPrompt;
+                promptMap[`ai-scene_3x4_${imgIdx}`] = manualPrompt;
               } else {
                 updateProgress(completedCount, totalCount, `💬 生成AI场景提示词 [图${imgIdx + 1}]...`);
                 try {
-                  let p = await generatePrompt(analysis, aiMultiState.productSpecs, 'ai-scene');
-                  if (extraAIScene) p += ' ' + extraAIScene;
-                  promptMap[`ai-scene_${imgIdx}`] = p;
+                  const result = await generatePrompt(selectedImgs[imgIdx].blob, aiMultiState.productSpecs, 'ai-scene');
+                  let p1 = result.prompt_1x1 || '';
+                  let p2 = result.prompt_3x4 || '';
+                  if (extraAIScene) { p1 += ' ' + extraAIScene; p2 += ' ' + extraAIScene; }
+                  promptMap[`ai-scene_1x1_${imgIdx}`] = p1;
+                  promptMap[`ai-scene_3x4_${imgIdx}`] = p2;
                 } catch (e) { console.warn('AI scene prompt failed:', e.message); }
               }
             })());
@@ -775,13 +780,18 @@
           if (selectedTypes.includes('realistic-scene')) {
             promptPromises.push((async () => {
               if (sceneModes['realistic-scene'] === 'manual') {
-                promptMap[`realistic-scene_${imgIdx}`] = document.getElementById('aiPromptRealSceneManual')?.value?.trim() || '';
+                const manualPrompt = document.getElementById('aiPromptRealSceneManual')?.value?.trim() || '';
+                promptMap[`realistic-scene_1x1_${imgIdx}`] = manualPrompt;
+                promptMap[`realistic-scene_3x4_${imgIdx}`] = manualPrompt;
               } else {
                 updateProgress(completedCount, totalCount, `💬 生成实拍场景提示词 [图${imgIdx + 1}]...`);
                 try {
-                  let p = await generatePrompt(analysis, aiMultiState.productSpecs, 'realistic-scene');
-                  if (extraRealScene) p += ' ' + extraRealScene;
-                  promptMap[`realistic-scene_${imgIdx}`] = p;
+                  const result = await generatePrompt(selectedImgs[imgIdx].blob, aiMultiState.productSpecs, 'realistic-scene');
+                  let p1 = result.prompt_1x1 || '';
+                  let p2 = result.prompt_3x4 || '';
+                  if (extraRealScene) { p1 += ' ' + extraRealScene; p2 += ' ' + extraRealScene; }
+                  promptMap[`realistic-scene_1x1_${imgIdx}`] = p1;
+                  promptMap[`realistic-scene_3x4_${imgIdx}`] = p2;
                 } catch (e) { console.warn('Real scene prompt failed:', e.message); }
               }
             })());
@@ -814,25 +824,23 @@
             allGenPromises.push(genImage(handheldTask, handheldPrompt, currentImg.blob));
           }
 
-          // Track 3: AI scene - 1:1 and 3:4
+          // Track 3: AI scene - 1:1 and 3:4 (各自使用不同提示词)
           if (selectedTypes.includes('ai-scene')) {
-            const aiScenePrompt = promptMap[`ai-scene_${imgIdx}`];
-            if (aiScenePrompt) {
-              const aiSceneTasks = imgTasks.filter(t => t.type === 'ai-scene');
-              for (const task of aiSceneTasks) {
-                allGenPromises.push(genImage(task, aiScenePrompt, currentImg.blob));
-              }
+            const aiSceneTasks = imgTasks.filter(t => t.type === 'ai-scene');
+            for (const task of aiSceneTasks) {
+              const ratioKey = task.ratio === '3:4' ? '3x4' : '1x1';
+              const prompt = promptMap[`ai-scene_${ratioKey}_${imgIdx}`];
+              if (prompt) allGenPromises.push(genImage(task, prompt, currentImg.blob));
             }
           }
 
-          // Track 4: Realistic scene - 1:1 and 3:4
+          // Track 4: Realistic scene - 1:1 and 3:4 (各自使用不同提示词)
           if (selectedTypes.includes('realistic-scene')) {
-            const realScenePrompt = promptMap[`realistic-scene_${imgIdx}`];
-            if (realScenePrompt) {
-              const realSceneTasks = imgTasks.filter(t => t.type === 'realistic-scene');
-              for (const task of realSceneTasks) {
-                allGenPromises.push(genImage(task, realScenePrompt, currentImg.blob));
-              }
+            const realSceneTasks = imgTasks.filter(t => t.type === 'realistic-scene');
+            for (const task of realSceneTasks) {
+              const ratioKey = task.ratio === '3:4' ? '3x4' : '1x1';
+              const prompt = promptMap[`realistic-scene_${ratioKey}_${imgIdx}`];
+              if (prompt) allGenPromises.push(genImage(task, prompt, currentImg.blob));
             }
           }
         }
@@ -842,6 +850,21 @@
 
         updateProgress(totalCount, totalCount, '✅ 全部完成！');
         showToast('一键多图生成完成');
+
+        // 收集所有成功生成的图片并自动保存（最多保存前20张）
+        if (typeof saveGeneratedImages === 'function') {
+          const allImages = [];
+          for (const task of allTasks) {
+            const result = aiMultiState.results[task.id];
+            if (result && result.images && result.images.length > 0) {
+              allImages.push(...result.images);
+              if (allImages.length >= 20) break;
+            }
+          }
+          if (allImages.length > 0) {
+            saveGeneratedImages(allImages, 'batch', 'multi');
+          }
+        }
 
       } catch (error) {
         console.error('AI multi-generate error:', error);
@@ -875,12 +898,18 @@
       return data.analysis || '';
     }
 
-    // ========== Ollama 提示词生成 ==========
-    async function generatePrompt(analysis, specs, sceneType) {
+    // ========== Ollama 提示词生成（带图片视觉识别） ==========
+    // 发送产品图片给 Ollama，让 LLM 亲眼看到产品来生成场景提示词
+    // 返回 { prompt_1x1, prompt_3x4 }
+    async function generatePrompt(imageBlob, specs, sceneType) {
+      const formData = new FormData();
+      formData.append('image', imageBlob, 'product.png');
+      formData.append('productSpecs', specs || '');
+      formData.append('sceneType', sceneType);
+
       const resp = await fetch('/api/jimeng/generate-prompts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ analysis, productSpecs: specs, sceneType }),
+        body: formData,
       });
 
       if (!resp.ok) {
@@ -889,17 +918,27 @@
       }
 
       const data = await resp.json();
-      return data.prompt || getDefaultPrompt(sceneType);
+      // 新接口返回 prompt_1x1 和 prompt_3x4
+      if (data.prompt_1x1 || data.prompt_3x4) {
+        return {
+          prompt_1x1: data.prompt_1x1 || getDefaultPrompt(sceneType, '1:1'),
+          prompt_3x4: data.prompt_3x4 || getDefaultPrompt(sceneType, '3:4'),
+        };
+      }
+      // 兼容旧接口（单条 prompt）
+      const singlePrompt = data.prompt || getDefaultPrompt(sceneType, '1:1');
+      return { prompt_1x1: singlePrompt, prompt_3x4: singlePrompt };
     }
 
     // 默认提示词（Ollama 不可用时使用）
-    function getDefaultPrompt(type) {
+    function getDefaultPrompt(type, ratio) {
+      const ratioSuffix = ratio === '3:4' ? ' --ar 3:4' : ' --ar 1:1';
       const defaults = {
-        'handheld': 'First-person POV shot, a hand naturally holding the product as if the viewer is holding it, close-up from the holder\'s perspective, professional product photography, clean background, studio lighting, e-commerce style, sharp focus on the product, immersive first-person view, --ar 1:1 --iw 2.0',
-        'ai-scene': 'The exact main product from the reference image remains absolutely unchanged. Only the background is replaced with a professional diorama scene with realistic miniature textures, studio lighting, hyper-realistic, 8k resolution --ar 1:1 --iw 2.0',
-        'realistic-scene': 'The exact main product from the reference image remains absolutely unchanged. Only the background is replaced with a realistic real-life scene, natural lighting, authentic environment, professional product photography, 8k resolution --ar 1:1 --iw 2.0',
+        'handheld': 'First-person POV shot, a hand naturally holding the product as if the viewer is holding it, close-up from the holder\'s perspective, professional product photography, clean background, studio lighting, e-commerce style, sharp focus on the product, immersive first-person view, --iw 2.0',
+        'ai-scene': 'The exact main product from the reference image remains absolutely unchanged. Only the background is replaced with a professional diorama scene with realistic miniature textures, studio lighting, hyper-realistic, 8k resolution, --iw 2.0',
+        'realistic-scene': 'The exact main product from the reference image remains absolutely unchanged. Only the background is replaced with a realistic real-life scene, natural lighting, authentic environment, professional product photography, --iw 2.0',
       };
-      return defaults[type] || '';
+      return (defaults[type] || '') + ratioSuffix;
     }
 
     // ========== 图生图 ==========
@@ -907,16 +946,19 @@
       const model = document.getElementById('aiMultiModel').value;
       const strength = parseInt(document.getElementById('aiMultiStrength').value) / 100;
 
-      const imageBlob = imageBlobOverride || dataURLtoBlob(aiMultiState.uploadedImageSrc);
+      const imageBlob = imageBlobOverride || (aiMultiState.uploadedImageSrc ? dataURLtoBlob(aiMultiState.uploadedImageSrc) : null);
 
       const formData = new FormData();
       formData.append('model', model);
       formData.append('prompt', prompt);
       formData.append('ratio', ratio);
       formData.append('resolution', '2k');
-      formData.append('sample_strength', strength.toString());
       formData.append('response_format', 'b64_json');
-      formData.append('images', imageBlob, 'product.png');
+      // 有图片时使用 img2img，否则为文生图
+      if (imageBlob) {
+        formData.append('sample_strength', strength.toString());
+        formData.append('images', imageBlob, 'product.png');
+      }
 
       const resp = await fetch('/api/jimeng/compositions', {
         method: 'POST',
@@ -924,8 +966,18 @@
       });
 
       if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ error: { message: `Request failed (${resp.status})` } }));
-        throw new Error(err.error?.message || `Generation failed (${resp.status})`);
+        // 尝试多种错误格式提取
+        let errMsg = `Request failed (${resp.status})`;
+        try {
+          const errBody = await resp.json();
+          errMsg = errBody.error?.message || errBody.error || errBody.message || JSON.stringify(errBody);
+        } catch (e) {
+          try {
+            const text = await resp.text();
+            if (text) errMsg = text.substring(0, 200);
+          } catch (e2) {}
+        }
+        throw new Error(errMsg);
       }
 
       const result = await resp.json();
@@ -982,6 +1034,31 @@
         </div>
       `).join('');
       if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [container] });
+    }
+
+    // 创建单张任务卡片HTML（不覆盖已存在的卡片）
+    function createSingleTaskCard(task) {
+      return `
+        <div id="card-${task.id}" style="background:#fff;border-radius:8px;box-shadow:0 1px 6px rgba(0,0,0,0.06);overflow:hidden;transition:all 0.2s;font-size:11px;">
+          <div style="padding:4px 8px;display:flex;align-items:center;gap:4px;border-bottom:1px solid #f3f4f6;">
+            <i data-lucide="${task.icon}" style="width:13px;height:13px;flex-shrink:0;"></i>
+            <span style="font-size:11px;font-weight:600;color:#1f2937;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${task.label}</span>
+            <span id="status-${task.id}" style="font-size:9px;padding:1px 6px;border-radius:8px;background:#fef3c7;color:#92400e;">生成中</span>
+          </div>
+          <div style="position:relative;">
+            <div id="img-${task.id}" style="width:100%;aspect-ratio:${task.ratio === '3:4' ? '3/4' : '1'};background:#f9fafb;display:flex;align-items:center;justify-content:center;min-height:80px;">
+              <div style="text-align:center;"><div style="display:inline-block;width:22px;height:22px;border:2px solid #3b82f6;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></div></div>
+            </div>
+            <button id="toggle-${task.id}" onclick="toggleOriginalImage('${task.id}')" style="display:none;position:absolute;top:4px;left:4px;padding:2px 6px;border:none;border-radius:3px;background:rgba(0,0,0,0.55);color:#fff;font-size:9px;cursor:pointer;z-index:2;backdrop-filter:blur(4px);" title="切换原图/结果图">原图</button>
+          </div>
+          <div id="thumbs-${task.id}" style="display:none;padding:4px 4px 0;gap:3px;flex-wrap:wrap;"></div>
+          <div id="actions-${task.id}" style="padding:4px 6px;gap:4px;display:none;">
+            <button onclick="downloadAIResult('${task.id}')" style="flex:1;padding:3px;border:1px solid #d1d5db;border-radius:3px;background:#fff;font-size:10px;cursor:pointer;color:#374151;" title="下载"><i data-lucide="download" style="width:12px;height:12px;display:block;margin:0 auto;"></i></button>
+            <button onclick="applyAIResultToTemplate('${task.id}')" style="flex:1;padding:3px;border:1px solid #3b82f6;border-radius:3px;background:#eff6ff;font-size:10px;cursor:pointer;color:#1e40af;" title="应用到模板"><i data-lucide="clipboard-list" style="width:12px;height:12px;display:block;margin:0 auto;"></i></button>
+            <button onclick="regenerateSingle('${task.id}')" style="flex:1;padding:3px;border:1px solid #d1d5db;border-radius:3px;background:#fff;font-size:10px;cursor:pointer;color:#374151;" title="重新生成"><i data-lucide="refresh-cw" style="width:12px;height:12px;display:block;margin:0 auto;"></i></button>
+          </div>
+        </div>
+      `;
     }
 
     function updateCardStatus(taskId, status, imagesOrSrc, errorMsg) {
@@ -1094,7 +1171,8 @@
     }
 
     function closeLightbox() {
-      document.getElementById('lightboxModal').style.display = 'none';
+      const modal = document.getElementById('lightboxModal');
+      if (modal) modal.style.display = 'none';
     }
 
     // Keyboard support for lightbox
@@ -1147,7 +1225,6 @@
     }
 
     async function regenerateSingle(taskId) {
-      if (aiMultiState.isGenerating) return;
       const task = aiMultiState.tasks.find(t => t.id === taskId) || AI_MULTI_TASKS.find(t => t.id === taskId);
       if (!task) return;
 
@@ -1170,17 +1247,24 @@
             ? ` Product specifications: ${aiMultiState.productSpecs}. Ensure the hand-to-product scale ratio accurately reflects the actual product size.`
             : '';
           prompt = `First-person POV shot, a hand naturally holding the product as if the viewer is holding it, close-up from the holder's perspective, professional product photography, clean background, studio lighting, e-commerce style, sharp focus on the product, immersive first-person view.${specsPart} --ar 1:1 --iw 2.0`;
-        } else if (aiMultiState.productAnalysis) {
-          const result = await generatePrompt(aiMultiState.productAnalysis, aiMultiState.productSpecs, task.type);
-          prompt = result;
+        } else if (task.type === 'ai-scene' || task.type === 'realistic-scene') {
+          // 发送产品图片给视觉模型，生成对应比例的提示词
+          const result = await generatePrompt(currentImg.blob, aiMultiState.productSpecs, task.type);
+          // 重新生成时使用对应比例的提示词
+          prompt = task.ratio === '3:4' ? (result.prompt_3x4 || result.prompt_1x1) : result.prompt_1x1;
         } else {
-          prompt = getDefaultPrompt(task.type);
+          prompt = getDefaultPrompt(task.type, task.ratio);
         }
 
         const images = await generateImage(prompt, task.ratio, currentImg.blob);
         aiMultiState.results[taskId] = { images: images, currentIndex: 0, status: 'done' };
         updateCardStatus(taskId, 'done', images);
         showToast(`${task.label} 重新生成完成`);
+
+        // 保存到历史
+        if (typeof saveGeneratedImages === 'function' && images.length > 0) {
+          saveGeneratedImages(images, task.label, task.type);
+        }
       } catch (e) {
         aiMultiState.results[taskId] = { images: [], status: 'error', error: e.message };
         updateCardStatus(taskId, 'error', null, e.message);
@@ -1190,7 +1274,7 @@
 
     // ========== 单独生成某类型 ==========
     async function generateSingleType(type) {
-      if (aiMultiState.isGenerating) { showToast('正在生成中，请等待', true); return; }
+      if (!aiMultiState.apiConfigured) { showToast('API 未配置，请在设置中配置即梦 API', true); return; }
       const selectedImgs = getSelectedImages();
       if (selectedImgs.length === 0) { showToast('请先上传并勾选产品图', true); return; }
       if (!aiMultiState.apiConfigured) { showToast('API 未配置', true); return; }
@@ -1225,12 +1309,19 @@
         }
       }
 
-      // Ensure result cards exist
+      // 只创建本类型的卡片，不影响已存在的其他类型卡片
       const existingTasks = aiMultiState.tasks.length > 0 ? aiMultiState.tasks : AI_MULTI_TASKS;
       const missingTasks = allTasks.filter(t => !document.getElementById(`card-${t.id}`));
       if (missingTasks.length > 0) {
+        // 只合并本类型的任务，不渲染全部
         aiMultiState.tasks = [...new Set([...existingTasks, ...allTasks])];
-        renderAIResultCards(aiMultiState.tasks);
+        // 仅对缺失的卡片逐个添加，不重绘全部
+        const container = document.getElementById('aiMultiResults');
+        for (const task of missingTasks) {
+          const cardHtml = createSingleTaskCard(task);
+          container.insertAdjacentHTML('beforeend', cardHtml);
+        }
+        if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [container] });
       }
 
       document.getElementById('aiMultiEmpty').style.display = 'none';
@@ -1248,22 +1339,23 @@
           aiMultiState.uploadedImageBlob = currentImg.blob;
           aiMultiState.productAnalysis = null;
 
-          // Build base prompt
-          let basePrompt = '';
+          // Build base prompt (场景类支持按比例返回不同提示词)
+          let prompt1x1 = '';
+          let prompt3x4 = '';
           if (type === 'white') {
-            basePrompt = WHITE_BG_PROMPT;
+            prompt1x1 = prompt3x4 = WHITE_BG_PROMPT;
           } else if (type === 'handheld') {
             const specsPart = aiMultiState.productSpecs
               ? ` Product specifications: ${aiMultiState.productSpecs}. Ensure the hand-to-product scale ratio accurately reflects the actual product size.`
               : '';
-            basePrompt = `First-person POV shot, a hand naturally holding the product as if the viewer is holding it, close-up from the holder's perspective, professional product photography, clean background, studio lighting, e-commerce style, sharp focus on the product, immersive first-person view.${specsPart} --ar 1:1 --iw 2.0`;
+            prompt1x1 = prompt3x4 = `First-person POV shot, a hand naturally holding the product as if the viewer is holding it, close-up from the holder's perspective, professional product photography, clean background, studio lighting, e-commerce style, sharp focus on the product, immersive first-person view.${specsPart} --ar 1:1 --iw 2.0`;
           } else if (sceneModes[type] === 'manual') {
             // 手动模式：直接使用用户输入的提示词
             const manualEl = type === 'ai-scene' ? 'aiPromptAISceneManual' : 'aiPromptRealSceneManual';
-            basePrompt = document.getElementById(manualEl)?.value?.trim() || '';
-            if (!basePrompt) { showToast('请输入场景提示词', true); continue; }
+            prompt1x1 = prompt3x4 = document.getElementById(manualEl)?.value?.trim() || '';
+            if (!prompt1x1) { showToast('请输入场景提示词', true); continue; }
           } else {
-            // 自动模式：智能体反推提示词
+            // 自动模式：智能体反推提示词（不同比例可返回不同提示词）
             showToast('正在分析产品图片...', false);
             try {
               const analysis = await analyzeProduct();
@@ -1273,19 +1365,27 @@
               continue;
             }
             try {
-              basePrompt = await generatePrompt(aiMultiState.productAnalysis, aiMultiState.productSpecs, type);
+              const result = await generatePrompt(currentImg.blob, aiMultiState.productSpecs, type);
+              prompt1x1 = result.prompt_1x1 || '';
+              prompt3x4 = result.prompt_3x4 || prompt1x1;
+              if (extraPrompt) { prompt1x1 += ' ' + extraPrompt; prompt3x4 += ' ' + extraPrompt; }
             } catch (e) {
-              basePrompt = getDefaultPrompt(type);
+              prompt1x1 = getDefaultPrompt(type, '1:1');
+              prompt3x4 = getDefaultPrompt(type, '3:4');
             }
           }
+          // manual模式也加上extraPrompt
+          if (sceneModes[type] === 'manual' && extraPrompt) {
+            prompt1x1 += ' ' + extraPrompt;
+            prompt3x4 += ' ' + extraPrompt;
+          }
 
-          const finalPrompt = (sceneModes[type] === 'manual') ? basePrompt : (extraPrompt ? basePrompt + ' ' + extraPrompt : basePrompt);
-
-          // 1:1 和 3:4 并行发送
+          // 1:1 和 3:4 并行发送（各自使用对应比例的提示词）
           await Promise.all(imgTasks.map(async (task) => {
+            const taskPrompt = task.ratio === '3:4' ? prompt3x4 : prompt1x1;
             updateCardStatus(task.id, 'generating');
             try {
-              const images = await generateImage(finalPrompt, task.ratio, currentImg.blob);
+              const images = await generateImage(taskPrompt, task.ratio, currentImg.blob);
               aiMultiState.results[task.id] = { images: images, currentIndex: 0, status: 'done' };
               updateCardStatus(task.id, 'done', images);
             } catch (e) {
@@ -1297,6 +1397,21 @@
         }
 
         showToast(`${baseTasks[0].label} 生成完成`);
+
+        // 保存到历史
+        if (typeof saveGeneratedImages === 'function') {
+          const allImages = [];
+          for (const task of allTasks) {
+            const result = aiMultiState.results[task.id];
+            if (result && result.images && result.images.length > 0) {
+              allImages.push(...result.images);
+              if (allImages.length >= 10) break;
+            }
+          }
+          if (allImages.length > 0) {
+            saveGeneratedImages(allImages, baseTasks[0].label, type);
+          }
+        }
       } finally {
         aiMultiState.isGenerating = false;
       }
@@ -1308,57 +1423,289 @@
     async function testCustomPrompt() {
       const prompt = document.getElementById('aiCustomPrompt').value.trim();
       if (!prompt) { showToast('请输入提示词', true); return; }
-      const selectedImgs = getSelectedImages();
-      if (selectedImgs.length === 0) { showToast('请先上传并勾选产品图', true); return; }
       if (!aiMultiState.apiConfigured) { showToast('API 未配置', true); return; }
 
       const ratio = document.getElementById('aiCustomRatio').value;
-      const resultDiv = document.getElementById('aiCustomResult');
-      const resultImg = document.getElementById('aiCustomResultImg');
-      resultImg.src = '';
-      resultDiv.style.display = 'block';
-      resultImg.style.opacity = '0.5';
-      resultImg.style.minHeight = '80px';
 
-      // 使用第一张选中的图片
-      const currentImg = selectedImgs[0];
-      aiMultiState.uploadedImageSrc = currentImg.src;
-      aiMultiState.uploadedImageBlob = currentImg.blob;
+      // 如有已上传并选中的图片，则作为参考图（img2img），否则纯文生图
+      const selectedImgs = getSelectedImages();
+      if (selectedImgs.length > 0) {
+        const currentImg = selectedImgs[0];
+        aiMultiState.uploadedImageSrc = currentImg.src;
+        aiMultiState.uploadedImageBlob = currentImg.blob;
+      } else {
+        aiMultiState.uploadedImageSrc = null;
+        aiMultiState.uploadedImageBlob = null;
+      }
+
+      // 切换到右侧AI面板，创建加载占位
+      const taskId = '_custom_' + Date.now();
+      switchToAIPanel();
+      showLoadingPlaceholder(taskId, prompt, ratio);
 
       try {
         const images = await generateImage(prompt, ratio);
         customTestResultSrc = images[0];
         customTestResultImages = images;
-        resultImg.src = images[0];
-        resultImg.style.opacity = '1';
-        resultImg.style.minHeight = 'auto';
+
+        // 用结果替换加载占位
+        fillCustomResultCard(taskId, images, prompt, ratio);
+        window._customResults = { taskId, images };
+
+        // 自动保存到服务器
+        saveGeneratedImages(images, prompt, 'custom');
+
         showToast(`自定义提示词生成成功，共${images.length}张图`);
       } catch (e) {
-        resultImg.style.opacity = '1';
-        resultImg.style.minHeight = 'auto';
-        resultImg.alt = '生成失败';
+        // 显示错误状态
+        fillCustomErrorCard(taskId, prompt, ratio, e.message);
         showToast('生成失败: ' + e.message, true);
       }
     }
 
-    function downloadCustomResult() {
-      if (!customTestResultSrc) return;
+    function switchToAIPanel() {
+      const normalPanel = document.getElementById('mainContentNormal');
+      const aiPanel = document.getElementById('mainContentAIEdit');
+      if (normalPanel && aiPanel) {
+        normalPanel.style.display = 'none';
+        aiPanel.style.display = 'flex';
+      }
+      document.querySelectorAll('.sidebar-tab').forEach(tab => {
+        const onclick = tab.getAttribute('onclick') || '';
+        tab.classList.toggle('active', onclick.includes("'aiEdit'"));
+      });
+      document.querySelectorAll('.sidebar-tab-content').forEach(content => {
+        content.classList.toggle('active', content.id === 'tab-aiEdit');
+      });
+      const emptyEl = document.getElementById('aiMultiEmpty');
+      if (emptyEl) emptyEl.style.display = 'none';
+      // 显示历史面板
+      const hp = document.getElementById('historyPanel');
+      if (hp) {
+        hp.style.display = 'flex';
+        if (typeof refreshHistory === 'function') refreshHistory();
+      }
+    }
+
+    function showLoadingPlaceholder(taskId, prompt, ratio) {
+      const container = document.getElementById('aiMultiResults');
+      const aspectStyle = ratio === '3:4' ? '3/4' : '1';
+      // 追加新卡片，不清除已有任务
+      const cardHtml = `
+        <div id="card-${taskId}" style="background:#fff;border-radius:8px;box-shadow:0 1px 6px rgba(0,0,0,0.06);overflow:hidden;transition:all 0.2s;font-size:11px;">
+          <div style="padding:4px 8px;display:flex;align-items:center;gap:4px;border-bottom:1px solid #f3f4f6;">
+            <i data-lucide="sparkles" style="width:13px;height:13px;flex-shrink:0;"></i>
+            <span style="font-size:11px;font-weight:600;color:#1f2937;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${prompt}">自定义: ${prompt.substring(0, 30)}${prompt.length > 30 ? '...' : ''}</span>
+            <span style="font-size:9px;padding:1px 6px;border-radius:8px;background:#fef3c7;color:#92400e;">生成中</span>
+          </div>
+          <div id="img-${taskId}" style="width:100%;aspect-ratio:${aspectStyle};background:#f9fafb;display:flex;align-items:center;justify-content:center;min-height:120px;">
+            <div style="text-align:center;">
+              <div style="display:inline-block;width:32px;height:32px;border:3px solid #3b82f6;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+              <div style="margin-top:8px;font-size:11px;color:#9ca3af;">AI 正在生成图片...</div>
+            </div>
+          </div>
+        </div>
+      `;
+      container.insertAdjacentHTML('beforeend', cardHtml);
+      if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [container] });
+    }
+
+    function fillCustomResultCard(taskId, images, prompt, ratio) {
+      const card = document.getElementById(`card-${taskId}`);
+      if (!card) return;
+      const aspectStyle = ratio === '3:4' ? '3/4' : '1';
+
+      let thumbsHtml = '';
+      if (images.length > 1) {
+        thumbsHtml = images.map((src, i) => `
+          <img src="${src}" onclick="switchCustomResultThumb('${taskId}',${i})"
+               style="width:28px;height:28px;object-fit:cover;border-radius:3px;cursor:pointer;border:2px solid ${i === 0 ? '#3b82f6' : '#e5e7eb'};"
+               data-custom-thumb="${taskId}" data-index="${i}" />
+        `).join('');
+      }
+
+      card.innerHTML = `
+        <div style="padding:4px 8px;display:flex;align-items:center;gap:4px;border-bottom:1px solid #f3f4f6;">
+          <i data-lucide="sparkles" style="width:13px;height:13px;flex-shrink:0;"></i>
+          <span style="font-size:11px;font-weight:600;color:#1f2937;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${prompt}">自定义: ${prompt.substring(0, 30)}${prompt.length > 30 ? '...' : ''}</span>
+          <span style="font-size:9px;padding:1px 6px;border-radius:8px;background:#dcfce7;color:#166534;">${images.length}张</span>
+        </div>
+        <div style="position:relative;">
+          <div id="img-${taskId}" style="width:100%;aspect-ratio:${aspectStyle};background:#f9fafb;display:flex;align-items:center;justify-content:center;min-height:60px;cursor:pointer;" onclick="window.open('${images[0]}', '_blank')">
+            <img src="${images[0]}" style="width:100%;height:100%;object-fit:contain;" />
+          </div>
+        </div>
+        ${images.length > 1 ? `
+        <div id="thumbs-${taskId}" style="display:flex;padding:4px 4px 0;gap:3px;flex-wrap:wrap;">
+          ${thumbsHtml}
+        </div>` : ''}
+        <div id="actions-${taskId}" style="padding:4px 6px;display:flex;gap:4px;">
+          <button onclick="downloadCustomResultById('${taskId}')" style="flex:1;padding:3px;border:1px solid #d1d5db;border-radius:3px;background:#fff;font-size:10px;cursor:pointer;color:#374151;" title="下载"><i data-lucide="download" style="width:12px;height:12px;display:block;margin:0 auto;"></i></button>
+          <button onclick="applyCustomToTemplate()" style="flex:1;padding:3px;border:1px solid #3b82f6;border-radius:3px;background:#eff6ff;font-size:10px;cursor:pointer;color:#1e40af;" title="应用到模板"><i data-lucide="clipboard-list" style="width:12px;height:12px;display:block;margin:0 auto;"></i></button>
+          <button onclick="testCustomPrompt()" style="flex:1;padding:3px;border:1px solid #d1d5db;border-radius:3px;background:#fff;font-size:10px;cursor:pointer;color:#374151;" title="重新生成"><i data-lucide="refresh-cw" style="width:12px;height:12px;display:block;margin:0 auto;"></i></button>
+        </div>
+      `;
+      if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [card] });
+    }
+
+    function fillCustomErrorCard(taskId, prompt, ratio, errorMsg) {
+      const card = document.getElementById(`card-${taskId}`);
+      if (!card) return;
+      const aspectStyle = ratio === '3:4' ? '3/4' : '1';
+      card.innerHTML = `
+        <div style="padding:4px 8px;display:flex;align-items:center;gap:4px;border-bottom:1px solid #f3f4f6;">
+          <i data-lucide="sparkles" style="width:13px;height:13px;flex-shrink:0;"></i>
+          <span style="font-size:11px;font-weight:600;color:#1f2937;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${prompt}">自定义: ${prompt.substring(0, 30)}${prompt.length > 30 ? '...' : ''}</span>
+          <span style="font-size:9px;padding:1px 6px;border-radius:8px;background:#fee2e2;color:#991b1b;">失败</span>
+        </div>
+        <div id="img-${taskId}" style="width:100%;aspect-ratio:${aspectStyle};background:#fef2f2;display:flex;align-items:center;justify-content:center;min-height:80px;">
+          <div style="text-align:center;color:#ef4444;font-size:11px;padding:12px;">${errorMsg || '生成失败'}</div>
+        </div>
+        <div style="padding:4px 6px;display:flex;gap:4px;">
+          <button onclick="testCustomPrompt()" style="flex:1;padding:4px;border:1px solid #d1d5db;border-radius:3px;background:#fff;font-size:10px;cursor:pointer;color:#374151;" title="重试"><i data-lucide="refresh-cw" style="width:12px;height:12px;display:block;margin:0 auto;"></i></button>
+        </div>
+      `;
+      if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [card] });
+    }
+
+    function switchCustomResultThumb(taskId, index) {
+      const data = window._customResults;
+      if (!data || data.taskId !== taskId || !data.images[index]) return;
+      const imgEl = document.getElementById(`img-${taskId}`);
+      if (imgEl) {
+        imgEl.innerHTML = `<img src="${data.images[index]}" style="width:100%;height:100%;object-fit:contain;" />`;
+        imgEl.onclick = function() { window.open(data.images[index], '_blank'); };
+      }
+      // 更新缩略图边框
+      document.querySelectorAll(`[data-custom-thumb="${taskId}"]`).forEach(el => {
+        const idx = parseInt(el.dataset.index);
+        el.style.borderColor = idx === index ? '#3b82f6' : '#e5e7eb';
+      });
+    }
+
+    function downloadCustomResultById(taskId, index) {
+      const data = window._customResults;
+      if (!data || data.taskId !== taskId) return;
       const a = document.createElement('a');
-      a.href = customTestResultSrc;
-      a.download = 'custom-test.png';
+      a.href = data.images[0];
+      a.download = 'custom-prompt-result.png';
       a.click();
     }
 
-    function applyCustomResult() {
-      if (!customTestResultSrc) return;
+    function applyCustomToTemplate() {
+      const data = window._customResults;
+      if (!data || !data.images || !data.images[0]) return;
       const img = document.getElementById('mainImagePreview');
       if (img) {
-        img.src = customTestResultSrc;
+        img.src = data.images[0];
         showToast('已应用到主图');
       }
     }
 
     // 页面加载时检查API状态
     checkAIEditApiStatus();
+
+    // ========== 生成历史保存 ==========
+
+    /**
+     * 自动保存生成的图片到服务器
+     */
+    async function saveGeneratedImages(images, prompt, type) {
+      try {
+        const resp = await fetch('/api/jimeng/save-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ images, prompt: prompt || '', type: type || '' }),
+        });
+        const data = await resp.json();
+        if (data.success) {
+          // 保存成功后刷新历史
+          refreshHistory();
+        }
+        return data;
+      } catch (e) {
+        console.warn('Save images failed:', e.message);
+        return null;
+      }
+    }
+
+    // ========== 生成历史面板 ==========
+
+    let historyPanelVisible = true;
+
+    function toggleHistoryPanel() {
+      const panel = document.getElementById('historyPanel');
+      const icon = document.getElementById('historyToggleIcon');
+      if (!panel) return;
+      historyPanelVisible = !historyPanelVisible;
+      panel.classList.toggle('collapsed', !historyPanelVisible);
+      if (icon) {
+        icon.setAttribute('data-lucide', historyPanelVisible ? 'chevron-right' : 'chevron-left');
+        if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [icon.parentElement] });
+      }
+      if (historyPanelVisible) {
+        refreshHistory();
+      }
+    }
+
+    async function refreshHistory() {
+      const listEl = document.getElementById('historyList');
+      const loadingEl = document.getElementById('historyLoading');
+      if (!listEl) return;
+      loadingEl.style.display = 'block';
+      listEl.innerHTML = '';
+
+      try {
+        const resp = await fetch('/api/jimeng/history');
+        const data = await resp.json();
+        loadingEl.style.display = 'none';
+
+        if (!data.success || !data.groups || data.groups.length === 0) {
+          listEl.innerHTML = '<div class="history-loading" style="display:block;">暂无生成历史</div>';
+          return;
+        }
+
+        let html = '';
+        for (const group of data.groups) {
+          html += `<div class="history-date-group">`;
+          html += `<div class="history-date-label">${group.date} (${group.count}张)</div>`;
+
+          for (const img of group.images) {
+            html += `
+              <div class="history-item">
+                <img src="${img.url}" onclick="viewHistoryImage('${img.url}')" loading="lazy" />
+                <div class="history-item-actions">
+                  <button onclick="event.stopPropagation();downloadHistoryImage('${img.url}', '${img.filename}')">下载</button>
+                  <button onclick="event.stopPropagation();viewHistoryImage('${img.url}')">查看</button>
+                </div>
+              </div>
+            `;
+          }
+          html += `</div>`;
+        }
+        listEl.innerHTML = html;
+      } catch (e) {
+        loadingEl.style.display = 'none';
+        listEl.innerHTML = '<div class="history-loading" style="display:block;">加载失败</div>';
+      }
+    }
+
+    function viewHistoryImage(url) {
+      const modal = document.getElementById('lightboxModal');
+      const img = document.getElementById('lightboxImg');
+      if (modal && img) {
+        img.src = url;
+        modal.style.display = 'flex';
+      }
+    }
+
+    function downloadHistoryImage(url, filename) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'generated.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
 
     // ========== AI编辑功能结束 ==========

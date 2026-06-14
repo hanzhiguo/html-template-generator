@@ -103,8 +103,8 @@
    * 渲染图片列表
    */
   function renderImageList() {
-    const types = ['scene', 'white', 'set', 'detail', null];
-    const typeFullNames = { scene: '场景图', white: '白底图', set: '套装图', detail: '细节图' };
+    const types = ['scene', 'white', 'set', 'detail', 'handheld', null];
+    const typeFullNames = { scene: '场景图', white: '白底图', set: '套装图', detail: '细节图', handheld: '手持图' };
     
     // 按类型分组渲染
     types.forEach(type => {
@@ -287,7 +287,7 @@
         renderImageList();
         window.applySlotTypes();
         if (window.state.batchMode) window.renderBatchTypeSettings();
-        const typeName = targetType ? ({ scene: '场景图', white: '白底图', set: '套装图', detail: '细节图' })[targetType] : '未分类';
+        const typeName = targetType ? ({ scene: '场景图', white: '白底图', set: '套装图', detail: '细节图', handheld: '手持图' })[targetType] : '未分类';
         window.showToast(`已将 ${changed} 张图片移至${typeName}`);
       }
     } catch (e) {
@@ -360,7 +360,7 @@
 
   /**
    * 按类型全选图片
-   * @param {string|null} type 图片类型：'scene', 'white', 'set', 'detail', null(未分类)
+   * @param {string|null} type 图片类型：'scene', 'white', 'set', 'detail', 'handheld', null(未分类)
    */
   function selectAllOfType(type) {
     // 找到该类型的所有图片索引
@@ -384,7 +384,7 @@
     } else {
       // 全选该类型
       window.state.multiSelectedIndices = indices;
-      const typeNames = { scene: '场景图', white: '白底图', set: '套装图', detail: '细节图' };
+      const typeNames = { scene: '场景图', white: '白底图', set: '套装图', detail: '细节图', handheld: '手持图' };
       window.showToast(`已全选 ${typeNames[type] || '未分类'} 组 (${indices.length}张)`);
     }
 
@@ -496,7 +496,7 @@
   }
 
   /**
-   * 重置当前图片调整
+   * 重置当前图片调整并应用到全部
    */
   function resetActiveImageAdjust() {
     if (window.state.multiSelectedIndices.length > 1) {
@@ -514,7 +514,16 @@
       window.state.images[idx].offsetX = 0;
       window.state.images[idx].offsetY = 0;
     }
+    // 重置后应用到所有图片
+    window.state.images.forEach(img => {
+      img.scale = 1;
+      img.offsetX = 0;
+      img.offsetY = 0;
+    });
     setActiveImage(window.state.activeImageIndex);
+    renderImageList();
+    window.render();
+    window.showToast('已重置并应用到全部图片');
   }
 
   /**

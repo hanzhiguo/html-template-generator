@@ -11,8 +11,8 @@
    */
   function initSlotTypes() {
     const count = window.state.templateCount;
-    // 默认分配策略：位置0=场景图，位置1=白底图，位置2=套装图，其余=细节图
-    const defaultTypes = ['scene', 'white', 'set', 'detail'];
+    // 默认分配策略：位置0=场景图，位置1=白底图，位置2=手持图，位置3=套装图，其余=细节图
+    const defaultTypes = ['scene', 'white', 'handheld', 'set', 'detail'];
     while (window.state.slotTypes.length < count) {
       const idx = window.state.slotTypes.length;
       window.state.slotTypes.push(idx < defaultTypes.length ? defaultTypes[idx] : 'detail');
@@ -117,6 +117,7 @@
     const typeOptions = [
       { type: 'scene', label: '🏞 场景图', color: '#10b981' },
       { type: 'white', label: '⬜ 白底图', color: '#6b7280' },
+      { type: 'handheld', label: '✋ 手持图', color: '#ec4899' },
       { type: 'set',   label: '📦 套装图', color: '#8b5cf6' },
       { type: 'detail',label: '🔍 细节图', color: '#f59e0b' }
     ];
@@ -168,7 +169,7 @@
    * 更新图片类型统计
    */
   function updateImageTypeStats() {
-    const counts = { scene: 0, white: 0, set: 0, detail: 0 };
+    const counts = { scene: 0, white: 0, set: 0, detail: 0, handheld: 0 };
     window.state.images.forEach(img => {
       const t = img.type;
       if (counts[t] !== undefined) counts[t]++;
@@ -178,9 +179,10 @@
     document.getElementById('whiteCount').textContent = counts.white;
     document.getElementById('setCount').textContent = counts.set;
     document.getElementById('detailCount').textContent = counts.detail;
+    document.getElementById('handheldCount').textContent = counts.handheld;
     
     // 更新 imageTypes 索引
-    window.state.imageTypes = { scene: [], white: [], set: [], detail: [] };
+    window.state.imageTypes = { scene: [], white: [], set: [], detail: [], handheld: [] };
     window.state.images.forEach((img, i) => {
       const t = img.type;
       if (window.state.imageTypes[t]) window.state.imageTypes[t].push(i);
@@ -194,7 +196,7 @@
    * 循环切换图片类型
    */
   function cycleImageType(index) {
-    const types = ['scene', 'white', 'set', 'detail', null];
+    const types = ['scene', 'white', 'set', 'detail', 'handheld', null];
     const img = window.state.images[index];
     if (!img) return;
     const currentIdx = types.indexOf(img.type);
@@ -217,7 +219,7 @@
     // 所有位置都设为该类型
     window.state.slotTypes = Array(window.state.templateCount).fill(type);
     applySlotTypes();
-    const name = { scene: '场景图', white: '白底图', set: '套装图', detail: '细节图' }[type];
+    const name = { scene: '场景图', white: '白底图', set: '套装图', detail: '细节图', handheld: '手持图' }[type];
     window.showToast(`已将所有位置设为${name}`);
   }
 
